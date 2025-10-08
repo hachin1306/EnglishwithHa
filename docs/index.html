@@ -44,13 +44,14 @@
         #feedback-area { margin-top: 15px; padding: 15px; border-radius: 6px; min-height: 50px; background-color: #e9ecef; }
         .correct { color: #28a745; font-weight: bold; }
         .incorrect { color: #dc3545; font-weight: bold; text-decoration: underline; }
-
+        
         /* Transcript */
         #transcript-list { list-style: none; padding: 0; }
         #full-transcript-text { white-space: pre-wrap; font-size: 1.1em; line-height: 1.6; }
         .play-small-btn { background-color: #e6f0ff; border: 1px solid #007bff; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #007bff; font-size: 14px; padding-left: 3px; margin-right: 10px; }
         #transcript-list li { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; font-size: 1.1em; }
         .highlight { background-color: #fff3cd; padding: 2px 4px; border-radius: 3px; }
+        .sentence-highlight { background-color: #fff3cd; } 
         
         /* Notes & Manager */
         #user-notes { width: 100%; height: 100px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; resize: vertical; font-size: 14px; }
@@ -65,11 +66,63 @@
         
         /* Ẩn các thành phần Admin (sẽ được JS mở) */
         .admin-only { display: none; }
+        
+        /* Giao diện tạo bài học mới (Dán văn bản - Theo yêu cầu) */
+        .new-story-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap; 
+        }
+        .new-story-controls label {
+            white-space: nowrap;
+        }
+        .new-story-controls input[type="text"] {
+             flex: 1 1 200px; /* Cho phép co giãn */
+             padding: 8px; 
+             border: 1px solid #ccc;
+             border-radius: 4px;
+        }
+        #new-story-content {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            resize: vertical;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        #save-new-story-btn {
+            float: right;
+            padding: 10px 15px; 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            font-weight: bold;
+        }
+        #new-story-status {
+            float: left;
+            margin-top: 15px;
+        }
+
+        /* KHÓA CHỨC NĂNG ADMIN */
+        .admin-lock {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        .admin-lock button {
+            cursor: default !important;
+        }
+
 
         /* AUDIO MOCK */
         #audio-player-mock { 
             display: flex; align-items: center; background: #e0e0e0; padding: 10px; border-radius: 8px; margin-bottom: 15px;
-            opacity: 0.7; 
+            opacity: 1; 
         }
         .play-btn-mock { font-size: 24px; cursor: pointer; margin-right: 10px; color: #007bff; }
         .time-mock { font-size: 14px; margin-right: 10px; }
@@ -77,6 +130,26 @@
         .progress-mock { height: 100%; width: 0%; background: #28a745; transition: width 0.1s linear; }
         .volume-mock { margin-left: 10px; font-size: 16px; }
 
+        /* STORIES LIST */
+        .story-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 8px 0; 
+            border-bottom: 1px dotted #eee;
+            cursor: pointer; 
+        }
+        .story-title-link {
+            text-decoration: none;
+            color: #333;
+            flex-grow: 1;
+            cursor: pointer; 
+        }
+        .story-title-link:hover {
+            color: #007bff;
+            text-decoration: underline;
+        }
+        
     </style>
 </head>
 <body>
@@ -99,7 +172,7 @@
         <div id="controls-area">
             <div id="current-story-container">
                 <p style="margin: 0;">Bài học đang mở: <strong id="current-story-title">Chưa có bài nào được chọn.</strong></p>
-                <button id="edit-story-btn" onclick="prepareToEditStory()">Sửa Bài Học Này</button>
+                <button id="edit-story-btn" style="display: none;" onclick="prepareToEditStory()">Sửa Bài Học Này</button>
             </div>
             
             <div class="speed-control control-group">
@@ -124,7 +197,6 @@
                     <button id="check-btn" disabled>Check</button>
                     <button id="skip-btn" disabled>Skip</button>
                     <button id="next-play-btn" disabled>Next & Play</button>
-                    <button id="translate-btn" disabled onclick="translateSentence()">Dịch Câu</button>
                 </div>
                 
                 <div id="feedback-area"></div>
@@ -143,7 +215,7 @@
                 <h2>Full Transcript (Xem/Nghe)</h2>
                 
                 <div id="audio-player-mock">
-                    <span class="play-btn-mock" onclick="toggleFullPlay()">▶</span>
+                    <span class="play-btn-mock" id="full-play-btn" onclick="toggleFullPlay()">▶</span>
                     <span class="time-mock" id="audio-time">0:00 / 0:00</span>
                     <div class="progress-bar-mock">
                         <div class="progress-mock" id="audio-progress"></div>
@@ -158,658 +230,790 @@
                 </ul>
                 
                 <h3 style="margin-top: 30px;">Toàn bộ Đoạn Văn bản</h3>
-                <div id="full-transcript-text">
-                    Văn bản đầy đủ sẽ hiển thị tại đây khi bài học được tải.
-                </div>
+                <div id="full-transcript-text"></div>
             </div>
         </div>
 
         <div id="manager" class="tab-content hidden">
-            
-            <div class="manager-group admin-only" id="create-lesson-group">
-                <h3 id="lesson-management-title">Tạo Bài Học Mới</h3>
-                <button onclick="resetLessonForm()" style="background-color: #17a2b8; color: white; border: none; padding: 8px 15px; border-radius: 5px; margin-bottom: 15px; cursor: pointer;">
-                    + Tạo Bài Học Mới (Reset Form)
-                </button>
-                <label for="story-title-input">Tên Bài Học:</label>
-                <input type="text" id="story-title-input" placeholder="Ví dụ: My New Lesson">
+            <div class="manager-group" id="create-new-story-section">
+                <h2>Tạo Bài Học Mới</h2>
                 
-                <label for="new-transcript-input">Nội dung Bài Học (Full Transcript):</label>
-                <textarea id="new-transcript-input" placeholder="Dán văn bản tiếng Anh vào đây. Mỗi dòng xuống dòng hoặc dấu chấm câu sẽ là một câu dictation."></textarea>
-                
-                <button id="save-story-btn" onclick="saveNewOrEditedStory()" style="background-color: #007bff; color: white; border: none; padding: 10px; border-radius: 5px; margin-top: 10px;">Lưu Bài Học</button>
-                <button id="export-btn" onclick="exportData()" style="background-color: #28a745; color: white; border: none; padding: 10px; border-radius: 5px; margin-top: 10px;">Xuất Dữ Liệu CODE (Để chia sẻ)</button>
-                <p id="save-status" style="margin-top: 10px; font-size: 0.9em;"></p>
-            </div>
+                <div id="new-story-input-area" class="admin-lock">
+                    <div class="new-story-controls">
+                        <button onclick="resetNewStoryForm()" style="padding: 10px 15px; background-color: #20c997; color: white; border: none; border-radius: 5px; font-weight: bold;" disabled>+ Tạo Bài Học Mới (Reset Form)</button>
+                        
+                        <label for="new-story-title">Tên Bài Học:</label>
+                        <input type="text" id="new-story-title" 
+                            placeholder="Chức năng này chỉ dành cho chủ ứng dụng (Admin)."
+                            title="Đăng nhập Admin để sử dụng chức năng này.">
+                        
+                        <label for="new-story-content">Nội dung Bài Học (Full Transcript):</label>
+                    </div>
+                    
+                    <textarea id="new-story-content" 
+                        placeholder="Chức năng này chỉ dành cho chủ ứng dụng (Admin)." 
+                        title="Đăng nhập Admin để sử dụng chức năng này."></textarea>
+                    
+                    <button id="save-new-story-btn" onclick="createNewStory()" disabled>Lưu Bài Học</button>
+                    <p id="new-story-status" style="margin-top: 10px; font-size: 0.9em;"></p>
+                    <div style="clear: both;"></div> 
+                </div>
 
-            <div id="admin-warning" style="display: none; padding: 15px; border: 1px solid #dc3545; background-color: #f8d7da; color: #721c24; border-radius: 8px; margin-bottom: 20px;">
-                <p style="margin: 0;">Bạn đang ở chế độ **Người dùng**. Chức năng Tạo/Sửa/Xóa bài học đã bị khóa.</p>
+                <p id="admin-message" style="margin-top: 10px; color: red; font-weight: bold; text-align: center;">
+                    ĐỂ THÊM/SỬA BÀI HỌC, VUI LÒNG DÙNG TÍNH NĂNG ĐĂNG NHẬP ADMIN Ở PHÍA TRÊN.
+                </p>
+            </div>
+            
+            <div class="manager-group admin-only" id="edit-story-section" style="display: none;">
+                <h2>Chỉnh Sửa Bài Học: <span id="editing-story-title"></span></h2>
+                <input type="text" id="edit-story-title" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc;">
+                
+                <label for="edit-story-content">Nội dung Bài Học (Full Transcript):</label>
+                <textarea id="edit-story-content" style="width: 100%; height: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; resize: vertical; font-size: 14px; margin-bottom: 10px;"></textarea>
+                
+                <button onclick="updateStory()" style="padding: 10px 15px; background-color: #17a2b8; color: white; border: none; border-radius: 5px; font-weight: bold;">Cập Nhật Bài Học</button>
+                <button onclick="cancelEdit()" style="padding: 10px 15px; background-color: #dc3545; color: white; border: none; border-radius: 5px; font-weight: bold; margin-left: 10px;">Hủy Bỏ</button>
+                <p id="edit-story-status" style="margin-top: 10px; font-size: 0.9em;"></p>
             </div>
 
             <div class="manager-group">
-                <h3>Bài Học Đã Lưu (Bấm để Tải)</h3>
-                <ul id="saved-stories-list">
-                    </ul>
+                <h2>Bài Học Đã Lưu (Bấm để Tải)</h2>
+                
+                <div id="saved-stories-list">
+                    </div>
             </div>
         </div>
 
     </div>
 
     <script>
-        // =================================================================
-        // CÀI ĐẶT
-        // =================================================================
-        const ADMIN_PASSWORD = "Hachin@1306"; 
-        let IS_ADMIN_MODE = false;
-        let storyToEditId = null; 
+        // *** KHAI BÁO BIẾN TOÀN CỤC ***
+        let currentStory = null;
+        let sentences = [];
+        let currentSentenceIndex = -1;
+        const synth = window.speechSynthesis;
+        let voices = [];
+        let englishVoice = null;
+        const adminPass = "Hachin@1306"; 
+        let isAdmin = false;
         
-        // =================================================================
-        // DỮ LIỆU BÀI HỌC BAN ĐẦU (DỮ LIỆU CÔNG KHAI)
-        // =================================================================
-        const initialStories = {
-            "story_snow_day": {
-                id: 'story_snow_day',
-                title: 'The Snow Day (Bài học mẫu)',
-                transcript: `Today is November 26th.
+        // Trạng thái cho Full Playback
+        let fullPlaybackInterval = null;
+        let isFullPlaying = false;
+        let currentFullSentenceIndex = 0;
+        let currentFullTime = 0;
+        let startTime = 0;
+        let totalDuration = 0; 
+        let totalDurationDisplay = "0:00"; 
+
+
+        // *** HÀM LẤY GIỌNG ĐỌC VÀ KHỞI TẠO ***
+        function populateVoices() {
+            voices = synth.getVoices();
+            englishVoice = voices.find(voice => voice.lang.startsWith('en-US') || voice.lang.startsWith('en-GB'));
+            
+            if (!englishVoice) {
+                englishVoice = voices.find(voice => voice.lang.startsWith('en'));
+            }
+            if (englishVoice) {
+                 console.log("Đã chọn giọng đọc:", englishVoice.name);
+            }
+        }
+        
+        if (synth.onvoiceschanged !== undefined) {
+            synth.onvoiceschanged = populateVoices;
+        } else {
+            populateVoices();
+        }
+
+
+        // *** CÁC HÀM TIỆN ÍCH ***
+        
+        function updateDictationControls(canControl) {
+            document.getElementById('check-btn').disabled = !canControl;
+            document.getElementById('skip-btn').disabled = !canControl;
+            document.getElementById('next-play-btn').disabled = !canControl;
+            document.getElementById('read-sentence-btn').disabled = !canControl;
+        }
+
+        function speak(text, rate, callback, isFullPlay = false) {
+            if (!synth) {
+                console.error("Speech Synthesis API không được hỗ trợ.");
+                if (callback) callback(); 
+                return;
+            }
+            
+            if (!isFullPlay) {
+                synth.cancel();
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = rate;
+            
+            if (englishVoice) {
+                utterance.voice = englishVoice;
+            }
+            utterance.lang = 'en-US'; 
+            
+            utterance.onend = () => {
+                if (callback) callback();
+            };
+            
+            utterance.onerror = (event) => {
+                 console.error('Lỗi Speech Synthesis:', event.error);
+                 if (callback) callback();
+            };
+            
+            synth.speak(utterance);
+        }
+
+        // Tải danh sách bài học đã lưu từ LocalStorage
+        function loadSavedStories() {
+            const stories = JSON.parse(localStorage.getItem('savedStories')) || {};
+            const listContainer = document.getElementById('saved-stories-list');
+            listContainer.innerHTML = '';
+            
+            const titles = Object.keys(stories);
+
+            if (titles.length === 0) {
+                listContainer.innerHTML = '<p>Chưa có bài học nào được lưu. (Hoặc bấm Đăng nhập Admin để tạo bài mới)</p>';
+                return;
+            }
+            
+            // Sắp xếp: Bài học mẫu lên đầu
+            titles.sort((a, b) => {
+                if (a === "The Snow Day") return -1;
+                if (b === "The Snow Day") return 1;
+                return a.localeCompare(b);
+            });
+
+            titles.forEach(title => {
+                const story = stories[title];
+                
+                const storyDiv = document.createElement('div');
+                storyDiv.className = 'story-item';
+                
+                // Gán Event Listener để chọn bài học vào DIV cha
+                storyDiv.addEventListener('click', () => {
+                    document.getElementById('edit-story-section').style.display = 'none';
+                    // Đảm bảo khu vực tạo bài mới hiện lại nếu đang ở chế độ Admin
+                    if (isAdmin) {
+                         document.getElementById('create-new-story-section').style.display = ''; 
+                    }
+                    loadStory(title);
+                });
+                
+                // --- 1. Link Bài Học (Chức năng chọn bài) ---
+                const titleLink = document.createElement('span'); 
+                titleLink.className = 'story-title-link';
+                titleLink.textContent = title;
+                if (title === "The Snow Day") {
+                     titleLink.textContent += " (Bài học mẫu)";
+                }
+                
+                storyDiv.appendChild(titleLink);
+
+                // --- 2. Nút Xóa (Admin Only) ---
+                // Chỉ tạo nút xóa nếu là Admin
+                if (isAdmin) {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'Xóa';
+                    deleteBtn.style.backgroundColor = '#dc3545';
+                    deleteBtn.style.color = 'white';
+                    deleteBtn.style.border = 'none';
+                    deleteBtn.style.padding = '5px 10px';
+                    deleteBtn.style.borderRadius = '4px';
+                    deleteBtn.style.cursor = 'pointer';
+                    deleteBtn.style.marginLeft = '10px';
+                    deleteBtn.onclick = (e) => {
+                        e.stopPropagation(); 
+                        deleteStory(title);
+                    }
+                    storyDiv.appendChild(deleteBtn);
+                }
+
+                listContainer.appendChild(storyDiv);
+            });
+        }
+
+        function saveNotes() {
+            if (!currentStory) {
+                document.getElementById('note-status').textContent = "Vui lòng tải một bài học trước.";
+                document.getElementById('note-status').style.color = 'red';
+                return;
+            }
+            const notes = localStorage.getItem(`notes_${currentStory.title}`) || '';
+            const newNotes = document.getElementById('user-notes').value;
+            
+            if (newNotes === notes) {
+                document.getElementById('note-status').textContent = "Ghi chú không thay đổi.";
+                document.getElementById('note-status').style.color = 'orange';
+            } else {
+                localStorage.setItem(`notes_${currentStory.title}`, newNotes);
+                document.getElementById('note-status').textContent = "Đã lưu ghi chú thành công!";
+                document.getElementById('note-status').style.color = 'green';
+            }
+            setTimeout(() => document.getElementById('note-status').textContent = '', 3000);
+        }
+
+        function loadNotes() {
+            if (currentStory) {
+                const notes = localStorage.getItem(`notes_${currentStory.title}`) || '';
+                document.getElementById('user-notes').value = notes;
+            } else {
+                document.getElementById('user-notes').value = '';
+            }
+            document.getElementById('note-status').textContent = '';
+        }
+
+        function updateTranscriptList() {
+            const list = document.getElementById('transcript-list');
+            list.innerHTML = '';
+
+            if (sentences.length === 0) {
+                list.innerHTML = '<li>Chưa có nội dung bài học. Vui lòng tải bài học.</li>';
+                document.getElementById('full-transcript-text').textContent = '';
+                return;
+            }
+
+            let fullText = '';
+            sentences.forEach((sentence, index) => {
+                const li = document.createElement('li');
+                li.id = `full-s-${index}`; 
+
+                const playBtn = document.createElement('span');
+                playBtn.className = 'play-small-btn';
+                playBtn.innerHTML = '▶';
+                playBtn.onclick = (e) => {
+                    e.stopPropagation(); 
+                    const rate = parseFloat(document.getElementById('speech-rate').value);
+                    speak(sentence, rate);
+                };
+
+                const textSpan = document.createElement('span');
+                textSpan.textContent = sentence;
+                
+                if (index === currentSentenceIndex) {
+                    textSpan.classList.add('highlight');
+                } else {
+                    textSpan.classList.remove('highlight');
+                }
+                
+                if (index === currentFullSentenceIndex && isFullPlaying) {
+                    li.classList.add('sentence-highlight');
+                } else {
+                    li.classList.remove('sentence-highlight');
+                }
+
+                li.appendChild(playBtn);
+                li.appendChild(textSpan);
+                list.appendChild(li);
+                
+                fullText += sentence + (index < sentences.length - 1 ? '\n' : '');
+            });
+            
+            document.getElementById('full-transcript-text').textContent = fullText;
+        }
+
+        // *** CHỨC NĂNG CHÍNH: DICTATION ***
+
+        function loadStory(title) {
+            resetFullAudioMock();
+            if (synth.speaking) synth.cancel();
+            
+            const stories = JSON.parse(localStorage.getItem('savedStories')) || {};
+            const story = stories[title];
+
+            if (!story) {
+                console.error("Không tìm thấy bài học:", title);
+                return;
+            }
+
+            currentStory = story;
+            sentences = currentStory.content.split('\n').filter(s => s.trim() !== '');
+            currentSentenceIndex = -1; 
+            currentFullSentenceIndex = 0; 
+            
+            totalDuration = sentences.length * 3; 
+            totalDurationDisplay = formatTime(totalDuration);
+
+            document.getElementById('current-story-title').textContent = title;
+            document.getElementById('page-title').textContent = `${title} | Hachin Dictation`;
+            document.getElementById('total-sentences').textContent = sentences.length;
+            document.getElementById('current-sentence-index').textContent = 0;
+            document.getElementById('user-input').value = '';
+            document.getElementById('feedback-area').innerHTML = '';
+            
+            loadNotes();
+            updateTranscriptList();
+            
+            nextSentence(false); 
+            openTab('dictiation-page', document.querySelector('.tab-button:first-child'));
+            
+            document.getElementById('edit-story-btn').style.display = (isAdmin && currentStory) ? 'inline-block' : 'none';
+        }
+
+        function nextSentence(playAudio = true) {
+            currentSentenceIndex++;
+
+            if (currentSentenceIndex >= sentences.length) {
+                document.getElementById('feedback-area').innerHTML = '<p style="color: #007bff; font-size: 1.2em;">🎉 **Hoàn thành bài học!** Bạn đã hoàn thành tất cả các câu.</p>';
+                document.getElementById('current-sentence-index').textContent = sentences.length;
+                updateDictationControls(false); 
+                return;
+            }
+
+            const currentSentence = sentences[currentSentenceIndex];
+            
+            document.getElementById('user-input').value = '';
+            document.getElementById('user-input').focus();
+            document.getElementById('feedback-area').innerHTML = '';
+            document.getElementById('current-sentence-index').textContent = currentSentenceIndex + 1;
+            updateDictationControls(true);
+            updateTranscriptList(); 
+
+            if (playAudio) {
+                const rate = parseFloat(document.getElementById('speech-rate').value);
+                speak(currentSentence, rate);
+            }
+        }
+
+        function checkInput() {
+            if (currentSentenceIndex < 0 || currentSentenceIndex >= sentences.length) return;
+
+            const expected = sentences[currentSentenceIndex].trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
+            const actual = document.getElementById('user-input').value.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
+            const originalSentence = sentences[currentSentenceIndex];
+            
+            let feedbackHTML = '';
+
+            if (expected === actual) {
+                feedbackHTML = `<p class="correct">Chính xác!</p>`;
+                document.getElementById('feedback-area').innerHTML = feedbackHTML;
+                nextSentence(false); 
+            } else {
+                const wordsExpected = originalSentence.split(/\s+/).filter(w => w !== '');
+                const wordsActual = document.getElementById('user-input').value.trim().split(/\s+/).filter(w => w !== '');
+                
+                let correctedHTML = '';
+                
+                for (let i = 0; i < wordsExpected.length; i++) {
+                    const expectedWord = wordsExpected[i];
+                    
+                    const expectedWordClean = expectedWord.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    
+                    let actualWord = wordsActual[i];
+                    let actualWordClean = actualWord ? actualWord.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+                    
+                    if (!actualWord || expectedWordClean !== actualWordClean) {
+                        correctedHTML += `<span class="incorrect">${expectedWord}</span> `;
+                    } else {
+                        correctedHTML += `${expectedWord} `;
+                    }
+                }
+                
+                feedbackHTML = `
+                    <p class="incorrect">Sai rồi. Hãy thử lại hoặc bấm Skip.</p>
+                    <p>Gợi ý: ${correctedHTML.trim()}</p>
+                `;
+                document.getElementById('feedback-area').innerHTML = feedbackHTML;
+            }
+        }
+
+        function skipSentence() {
+            if (currentSentenceIndex < 0 || currentSentenceIndex >= sentences.length) return;
+            const originalSentence = sentences[currentSentenceIndex];
+            document.getElementById('feedback-area').innerHTML = `
+                <p>Bạn đã bỏ qua. Câu chính xác là:</p>
+                <p style="font-weight: bold; color: #007bff;">${originalSentence}</p>
+            `;
+            nextSentence(false); 
+        }
+
+        // *** CHỨC NĂNG FULL TRANSCRIPT (MOCK AUDIO) ***
+        function formatTime(seconds) {
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60).toString().padStart(2, '0');
+            return `${min}:${sec}`;
+        }
+        
+        function readNextFullSentence() {
+            if (!isFullPlaying || currentFullSentenceIndex >= sentences.length) {
+                if(currentFullSentenceIndex >= sentences.length) toggleFullPlay(); 
+                return;
+            }
+            
+            const sentence = sentences[currentFullSentenceIndex];
+            const rate = parseFloat(document.getElementById('speech-rate').value);
+            
+            updateTranscriptList(); 
+            
+            const currentLi = document.getElementById(`full-s-${currentFullSentenceIndex}`);
+            if (currentLi) {
+                currentLi.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
+            }
+            
+            speak(sentence, rate, () => {
+                currentFullSentenceIndex++;
+                readNextFullSentence();
+            }, true); 
+        }
+
+        function toggleFullPlay() {
+            const playBtn = document.getElementById('full-play-btn');
+            
+            if (sentences.length === 0) {
+                 document.getElementById('audio-time').textContent = "Chưa có bài học";
+                return;
+            }
+
+            if (isFullPlaying) {
+                // PAUSE
+                clearInterval(fullPlaybackInterval);
+                synth.cancel(); 
+                playBtn.textContent = '▶';
+                isFullPlaying = false;
+                updateTranscriptList(); 
+            } else {
+                // PLAY
+                if (currentFullSentenceIndex >= sentences.length) {
+                    currentFullSentenceIndex = 0; 
+                    currentFullTime = 0;
+                }
+                
+                playBtn.textContent = '⏸';
+                isFullPlaying = true;
+                startTime = performance.now() - currentFullTime * 1000; 
+                
+                readNextFullSentence();
+
+                fullPlaybackInterval = setInterval(() => {
+                    const elapsedTime = (performance.now() - startTime) / 1000;
+                    currentFullTime = elapsedTime;
+
+                    if (currentFullTime >= totalDuration) {
+                        currentFullTime = totalDuration;
+                        toggleFullPlay(); 
+                    }
+
+                    const progress = (currentFullTime / totalDuration) * 100;
+                    document.getElementById('audio-progress').style.width = `${progress}%`;
+                    document.getElementById('audio-time').textContent = `${formatTime(currentFullTime)} / ${totalDurationDisplay}`;
+                }, 100); 
+            }
+        }
+        
+        function resetFullAudioMock() {
+             clearInterval(fullPlaybackInterval);
+             synth.cancel(); 
+             isFullPlaying = false;
+             currentFullTime = 0;
+             currentFullSentenceIndex = 0;
+             document.getElementById('full-play-btn').textContent = '▶';
+             document.getElementById('audio-progress').style.width = `0%`;
+             document.getElementById('audio-time').textContent = sentences.length > 0 ? `0:00 / ${totalDurationDisplay}` : `0:00 / 0:00`;
+             updateTranscriptList(); 
+        }
+
+
+        // *** CHỨC NĂNG ADMIN & LƯU BÀI HỌC ***
+
+        function toggleAdminControls(enable) {
+            const newStoryArea = document.getElementById('new-story-input-area');
+            const editStoryBtn = document.getElementById('edit-story-btn');
+            const adminMessage = document.getElementById('admin-message');
+
+            if (enable) {
+                // Bật chế độ Admin
+                newStoryArea.classList.remove('admin-lock');
+                newStoryArea.querySelectorAll('input, textarea, button').forEach(el => el.disabled = false);
+                adminMessage.style.display = 'none';
+                if (currentStory) editStoryBtn.style.display = 'inline-block';
+                
+            } else {
+                // Tắt chế độ Admin (Chế độ người dùng)
+                newStoryArea.classList.add('admin-lock');
+                newStoryArea.querySelectorAll('input, textarea, button').forEach(el => el.disabled = true);
+                adminMessage.style.display = 'block';
+                editStoryBtn.style.display = 'none';
+            }
+        }
+
+        function toggleAdminMode() {
+            if (synth.speaking) synth.cancel();
+            
+            isAdmin = !isAdmin;
+            document.getElementById('admin-password').style.display = isAdmin ? 'none' : 'inline-block';
+            document.getElementById('auth-btn').style.display = isAdmin ? 'none' : 'inline-block';
+            
+            // Xử lý các Admin elements chung (Nút xóa, khu vực chỉnh sửa)
+            const adminElements = document.querySelectorAll('.admin-only');
+            adminElements.forEach(el => {
+                el.style.display = isAdmin ? '' : 'none'; 
+            });
+            
+            // Xử lý khu vực tạo bài học mới
+            toggleAdminControls(isAdmin);
+            
+            // Đảm bảo khu vực Edit Story bị ẩn (chỉ hiện khi bấm Sửa bài)
+            document.getElementById('edit-story-section').style.display = 'none';
+            
+            // Xử lý nút toggle
+            document.getElementById('toggle-admin-btn').style.display = 'inline-block';
+            document.getElementById('toggle-admin-btn').textContent = isAdmin ? 'Thoát Admin' : 'Đăng nhập Admin';
+            document.getElementById('auth-status').textContent = isAdmin ? 'Đã đăng nhập Admin' : '';
+
+            // Tải lại danh sách để hiện/ẩn nút Xóa
+            loadSavedStories();
+            // Đảm bảo nút Sửa Bài Học ở khu vực Control hoạt động đúng
+            document.getElementById('edit-story-btn').style.display = (isAdmin && currentStory) ? 'inline-block' : 'none';
+        }
+
+        function checkAdminPassword() {
+            const password = document.getElementById('admin-password').value;
+            if (password === adminPass) {
+                toggleAdminMode();
+            } else {
+                document.getElementById('auth-status').textContent = 'Mật khẩu sai!';
+                document.getElementById('auth-status').style.color = 'red';
+            }
+            document.getElementById('admin-password').value = '';
+        }
+
+        function resetNewStoryForm() {
+            if (!isAdmin) return;
+            document.getElementById('new-story-title').value = '';
+            document.getElementById('new-story-content').value = '';
+            document.getElementById('new-story-status').textContent = '';
+        }
+
+        function createNewStory() {
+            if (!isAdmin) return;
+            const titleInput = document.getElementById('new-story-title');
+            const contentInput = document.getElementById('new-story-content');
+            const status = document.getElementById('new-story-status');
+            
+            let title = titleInput.value.trim();
+            let content = contentInput.value.trim();
+
+            if (!title) {
+                 status.textContent = 'Vui lòng nhập Tên Bài Học.';
+                 status.style.color = 'red';
+                 return;
+            }
+            
+            if (!content) {
+                status.textContent = 'Vui lòng dán Nội dung Bài Học (Full Transcript).';
+                status.style.color = 'red';
+                return;
+            }
+
+            let stories = JSON.parse(localStorage.getItem('savedStories')) || {};
+            let finalTitle = title;
+            let count = 1;
+            
+            // Tránh trùng lặp tên bài học
+            while (stories[finalTitle]) {
+                finalTitle = `${title} (${count})`;
+                count++;
+            }
+
+            stories[finalTitle] = { title: finalTitle, content: content };
+            localStorage.setItem('savedStories', JSON.stringify(stories));
+
+            status.textContent = `Đã lưu bài học "${finalTitle}" thành công!`;
+            status.style.color = 'green';
+            
+            // Reset form
+            resetNewStoryForm(); 
+            
+            loadSavedStories();
+        }
+
+        function deleteStory(title) {
+            if (!isAdmin) return;
+            if (title === "The Snow Day") { alert("Không được phép xóa bài học mẫu."); return; }
+            if (!confirm(`Bạn có chắc chắn muốn xóa bài học "${title}"?`)) return;
+
+            let stories = JSON.parse(localStorage.getItem('savedStories')) || {};
+            delete stories[title];
+            localStorage.removeItem(`notes_${title}`); 
+            localStorage.setItem('savedStories', JSON.stringify(stories));
+            
+            loadSavedStories();
+            
+            if (currentStory && currentStory.title === title) {
+                currentStory = null;
+                sentences = [];
+                currentSentenceIndex = -1;
+                document.getElementById('current-story-title').textContent = 'Chưa có bài nào được chọn.';
+                document.getElementById('total-sentences').textContent = 0;
+                document.getElementById('current-sentence-index').textContent = 0;
+                document.getElementById('user-input').value = '';
+                document.getElementById('feedback-area').innerHTML = '';
+                document.getElementById('edit-story-btn').style.display = 'none';
+                updateTranscriptList();
+                loadNotes();
+                resetFullAudioMock();
+            }
+        }
+        
+        function prepareToEditStory() {
+            if (!currentStory || !isAdmin) return;
+            openTab('manager', document.querySelector('.tab-button:nth-child(3)'));
+            // Ẩn khu vực Tạo bài mới
+            document.getElementById('create-new-story-section').style.display = 'none';
+            // Hiện khu vực Sửa bài
+            document.getElementById('edit-story-section').style.display = ''; 
+            
+            document.getElementById('editing-story-title').textContent = currentStory.title;
+            document.getElementById('edit-story-title').value = currentStory.title;
+            document.getElementById('edit-story-content').value = currentStory.content;
+            document.getElementById('edit-story-status').textContent = '';
+        }
+
+        function updateStory() {
+            if (!isAdmin) return;
+            const oldTitle = currentStory.title;
+            const newTitle = document.getElementById('edit-story-title').value.trim();
+            const newContent = document.getElementById('edit-story-content').value.trim();
+            const status = document.getElementById('edit-story-status');
+
+            if (!newTitle || !newContent) {
+                status.textContent = 'Vui lòng nhập đầy đủ Tên và Nội dung Bài Học.';
+                status.style.color = 'red';
+                return;
+            }
+
+            let stories = JSON.parse(localStorage.getItem('savedStories')) || {};
+            
+            if (oldTitle !== newTitle) {
+                if (stories[newTitle]) {
+                    status.textContent = 'Tên bài học mới đã bị trùng. Vui lòng chọn tên khác.';
+                    status.style.color = 'red';
+                    return;
+                }
+                // Xóa bài cũ và ghi chú cũ
+                delete stories[oldTitle];
+                localStorage.removeItem(`notes_${oldTitle}`); 
+            }
+            
+            stories[newTitle] = { title: newTitle, content: newContent };
+            localStorage.setItem('savedStories', JSON.stringify(stories));
+
+            loadStory(newTitle); 
+            
+            status.textContent = `Đã cập nhật bài học "${newTitle}" thành công!`;
+            status.style.color = 'green';
+            
+            cancelEdit();
+        }
+
+        function cancelEdit() {
+            document.getElementById('edit-story-section').style.display = 'none';
+            // Đảm bảo khu vực tạo bài mới được hiển thị lại 
+            document.getElementById('create-new-story-section').style.display = ''; 
+            document.getElementById('edit-story-btn').style.display = (isAdmin && currentStory) ? 'inline-block' : 'none';
+        }
+
+        // *** CÀI ĐẶT MẶC ĐỊNH & INIT ***
+
+        function setupSampleStory() {
+            const stories = JSON.parse(localStorage.getItem('savedStories')) || {};
+            if (!stories["The Snow Day"]) {
+                const sampleContent = `Today is November 26th.
 It snowed all day today.
 The snow is beautiful.
 The snow finally stopped.
 My sister and I are excited.
 My mom doesn't like the snow.
 My mom has to shovel the driveway.
-`,
-                notes: ''
-            },
-            "story_gym": {
-                id: 'story_gym',
-                title: 'ĐI TẬP GYM',
-                transcript: `I need to wake up early for the gym.
-It is important to stretch before exercising.
-I do bench presses and squats.
-After my workout, I drink a protein shake.
-I feel great and ready for the day.
-`,
-                notes: ''
-            }
-        };
-        // =================================================================
-        
-        // CÁC BIẾN CHUNG
-        let currentStoryId = null;
-        let sentences = [];
-        let rawTranscript = ''; 
-        let currentSentenceIndex = 0;
-        let isSpeaking = false;
-        const speechSynth = window.speechSynthesis;
-        let currentUtterance = null;
-        let isFullPlaying = false;
-        let fullPlayIndex = 0;
-        let totalDuration = 0; 
-        
-        // =================================================================
-        // CHỨC NĂNG XÁC THỰC ADMIN
-        // =================================================================
-        
-        function checkAdminPassword() {
-            const passwordInput = document.getElementById('admin-password');
-            const status = document.getElementById('auth-status');
-            
-            if (passwordInput.value === ADMIN_PASSWORD) {
-                IS_ADMIN_MODE = true;
-                localStorage.setItem('isAdmin', 'true'); 
-                status.textContent = 'Đăng nhập Admin thành công!';
-                status.style.color = 'green';
-                passwordInput.value = '';
-                updateAdminModeUI();
-                // Chuyển thẳng về chế độ tạo bài mới sau khi đăng nhập 
-                resetLessonForm(); 
-            } else {
-                IS_ADMIN_MODE = false;
-                localStorage.setItem('isAdmin', 'false');
-                status.textContent = 'Mật khẩu sai!';
-                status.style.color = 'red';
-            }
-        }
-        
-        function toggleAdminMode() {
-            if (isSpeaking) { speechSynth.cancel(); isSpeaking = false; }
-            if (IS_ADMIN_MODE) {
-                // Chuyển sang chế độ Khách
-                IS_ADMIN_MODE = false;
-                localStorage.setItem('isAdmin', 'false');
-                document.getElementById('auth-status').textContent = 'Đã đăng xuất.';
-            } else {
-                // Chuyển sang chế độ Admin (hiện ô đăng nhập)
-                document.getElementById('admin-password').style.display = 'inline-block';
-                document.getElementById('auth-btn').style.display = 'inline-block';
-                document.getElementById('auth-status').textContent = '';
-            }
-            updateAdminModeUI();
-        }
-
-        function updateAdminModeUI() {
-            const adminElements = document.querySelectorAll('.admin-only');
-            const mainTitle = document.getElementById('main-title');
-            const adminWarning = document.getElementById('admin-warning');
-            const authInput = document.getElementById('admin-password');
-            const authBtn = document.getElementById('auth-btn');
-            const toggleBtn = document.getElementById('toggle-admin-btn');
-            const editBtn = document.getElementById('edit-story-btn');
-
-            if (IS_ADMIN_MODE) {
-                // Hiển thị tất cả các phần tử admin
-                adminElements.forEach(el => el.style.display = 'block');
-                mainTitle.style.color = '#dc3545'; 
-                mainTitle.textContent = 'Practice English with Hachin - ADMIN';
-                authInput.style.display = 'none';
-                authBtn.style.display = 'none';
-                toggleBtn.style.display = 'inline-block';
-                toggleBtn.textContent = 'Chế độ Khách';
-                adminWarning.style.display = 'none';
-                // Đảm bảo nút edit hiển thị nếu có bài đang load
-                if (currentStoryId) editBtn.style.display = 'inline-block'; 
-            } else {
-                // Ẩn tất cả các phần tử admin
-                adminElements.forEach(el => el.style.display = 'none');
-                mainTitle.style.color = '#007bff'; 
-                mainTitle.textContent = 'Practice English with Hachin';
-                
-                // Quản lý trạng thái nút đăng nhập/chuyển đổi
-                if (localStorage.getItem('isAdmin') === 'true') { 
-                    authInput.style.display = 'none';
-                    authBtn.style.display = 'none';
-                    toggleBtn.style.display = 'inline-block';
-                    toggleBtn.textContent = 'Đăng nhập Admin';
-                } else {
-                    authInput.style.display = 'inline-block';
-                    authBtn.style.display = 'inline-block';
-                    toggleBtn.style.display = 'none';
-                }
-                
-                editBtn.style.display = 'none';
-                
-                if (document.getElementById('manager').classList.contains('hidden') === false) {
-                    adminWarning.style.display = 'block';
-                }
-            }
-            renderSavedStories(); 
-        }
-
-        // =================================================================
-        // HÀM QUẢN LÝ DỮ LIỆU
-        // =================================================================
-
-        function getSavedStoriesFinal() {
-            const storiesInStorage = JSON.parse(localStorage.getItem('savedStories')) || {};
-            let finalStories = { ...initialStories }; 
-            
-            for (const key in storiesInStorage) {
-                // Hợp nhất dữ liệu: Bài mới của admin được thêm vào, notes của user được giữ lại
-                finalStories[key] = { ...finalStories[key] || {}, ...storiesInStorage[key] };
-            }
-            
-            // Cập nhật lại LocalStorage để đảm bảo đồng bộ
-            localStorage.setItem('savedStories', JSON.stringify(finalStories));
-            
-            return finalStories;
-        }
-        
-        function saveStories(stories) {
-            localStorage.setItem('savedStories', JSON.stringify(stories));
-            renderSavedStories();
-        }
-
-        function renderSavedStories() {
-            const list = document.getElementById('saved-stories-list');
-            list.innerHTML = '';
-            const stories = getSavedStoriesFinal();
-
-            Object.values(stories).forEach(story => {
-                const li = document.createElement('li');
-                li.style.display = 'flex';
-                li.style.justifyContent = 'space-between';
-                li.style.alignItems = 'center';
-                li.style.padding = '5px 0'; // Thêm padding cho dễ bấm
-
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'story-name';
-                nameSpan.textContent = story.title;
-                nameSpan.style.cursor = 'pointer';
-                nameSpan.style.color = '#007bff';
-                nameSpan.onclick = () => loadStory(story.id);
-
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'delete-btn';
-                deleteBtn.textContent = 'Xóa';
-                deleteBtn.style.marginLeft = '10px';
-                deleteBtn.style.backgroundColor = '#dc3545';
-                deleteBtn.style.color = 'white';
-                deleteBtn.style.border = 'none';
-                deleteBtn.style.padding = '3px 8px';
-                deleteBtn.style.borderRadius = '3px';
-
-                // FIX LỖI XÓA BÀI HỌC Ở ĐÂY
-                deleteBtn.onclick = (e) => {
-                    e.stopPropagation(); // Ngăn sự kiện click lan truyền đến li (loadStory)
-                    if (!IS_ADMIN_MODE) { alert('Chức năng xóa chỉ dành cho Admin.'); return; }
-                    if (confirm(`Bạn có chắc chắn muốn xóa bài học "${story.title}" khỏi bộ nhớ cục bộ không?`)) {
-                        deleteStory(story.id);
-                    }
-                };
-                
-                li.appendChild(nameSpan);
-                
-                // Chỉ hiển thị nút xóa cho Admin
-                if (IS_ADMIN_MODE) {
-                    li.appendChild(deleteBtn);
-                }
-                
-                list.appendChild(li);
-            });
-        }
-        
-        function deleteStory(id) {
-            if (!IS_ADMIN_MODE) { alert('Chức năng xóa chỉ dành cho Admin.'); return; } 
-            
-            const stories = getSavedStoriesFinal();
-            
-            // Nếu bài đang cố gắng xóa là bài mẫu, thì chỉ xóa khỏi localStorage 
-            // chứ không xóa khỏi initialStories (vì initialStories là data gốc)
-            const isInitialStory = initialStories.hasOwnProperty(id);
-            
-            if (stories[id]) {
-                delete stories[id];
-                
-                // Cập nhật lại localStorage
+My sister and I get to play.
+I put on my hat and mittens.
+My mom puts on my scarf.
+My mom zippers my jacket.
+My sister puts on her hat and mittens.
+My mom puts on her scarf.
+My mom zippers her jacket.
+My sister and I go outside.
+We begin to make a snowman.
+My mom starts to shovel the snow.
+My sister and I make snow angels.
+My sister and I throw snowballs.
+It starts to snow again.
+We go inside for hot chocolate.`;
+                stories["The Snow Day"] = { title: "The Snow Day", content: sampleContent }; 
                 localStorage.setItem('savedStories', JSON.stringify(stories));
+            }
+        }
 
-                if (currentStoryId === id) { currentStoryId = null; resetStudyArea(); }
-                document.getElementById('save-status').textContent = `Đã xóa bài học ID: ${id}.`;
-                document.getElementById('save-status').style.color = 'red';
-                
-                // Tải lại danh sách để UI cập nhật
-                renderSavedStories();
-                resetLessonForm();
+
+        function openTab(tabId, buttonElement) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.remove('hidden');
+            buttonElement.classList.add('active');
+            
+            if (tabId !== 'transcript-page') {
+                resetFullAudioMock();
             } else {
-                document.getElementById('save-status').textContent = `Không tìm thấy bài học ID: ${id}.`;
-                document.getElementById('save-status').style.color = 'orange';
-            }
-        }
-        
-        function prepareToEditStory() {
-            if (!IS_ADMIN_MODE) {
-                alert('Vui lòng đăng nhập Admin để sửa bài học.');
-                return;
-            }
-            if (!currentStoryId) {
-                alert('Vui lòng tải một bài học trước khi sửa.');
-                return;
-            }
-
-            const stories = getSavedStoriesFinal();
-            const story = stories[currentStoryId];
-            
-            if (!story) return;
-
-            // Chuyển đến tab Manager và đảm bảo các phần Admin được hiển thị
-            openTab('manager', document.querySelector('.tab-controls button:nth-child(3)'));
-            updateAdminModeUI(); 
-            
-            // Cập nhật form
-            storyToEditId = currentStoryId;
-            document.getElementById('lesson-management-title').textContent = 'Sửa Bài Học Hiện Tại';
-            document.getElementById('story-title-input').value = story.title;
-            document.getElementById('new-transcript-input').value = story.transcript;
-            document.getElementById('save-story-btn').textContent = 'Lưu Bài Học Đã Sửa';
-            document.getElementById('save-status').textContent = 'Đang sửa bài: ' + story.title;
-            document.getElementById('save-status').style.color = 'orange';
-            document.getElementById('story-title-input').focus();
-        }
-
-        function resetLessonForm() {
-            if (!IS_ADMIN_MODE) { alert('Chức năng này chỉ dành cho Admin.'); return; }
-            storyToEditId = null;
-            document.getElementById('lesson-management-title').textContent = 'Tạo Bài Học Mới';
-            document.getElementById('story-title-input').value = '';
-            document.getElementById('new-transcript-input').value = '';
-            document.getElementById('save-story-btn').textContent = 'Lưu Bài Học';
-            document.getElementById('save-status').textContent = 'Sẵn sàng tạo bài học mới.';
-            document.getElementById('save-status').style.color = '#333';
-            document.getElementById('story-title-input').focus();
-        }
-
-        function saveNewOrEditedStory() {
-            if (!IS_ADMIN_MODE) { alert('Bạn không có quyền Admin để thực hiện thao tác này.'); return; }
-            const title = document.getElementById('story-title-input').value.trim();
-            const transcript = document.getElementById('new-transcript-input').value.trim();
-
-            if (!title || !transcript) {
-                document.getElementById('save-status').textContent = 'Vui lòng điền đủ Tên và Nội dung bài học.';
-                document.getElementById('save-status').style.color = 'red';
-                return;
-            }
-
-            const stories = getSavedStoriesFinal();
-            let storyId;
-
-            if (storyToEditId) {
-                storyId = storyToEditId;
-                stories[storyId].title = title;
-                stories[storyId].transcript = transcript;
-                document.getElementById('save-status').textContent = `Đã cập nhật bài học: ${title}!`;
-            } else {
-                storyId = 's_' + title.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 30) + '_' + Date.now().toString().slice(-4);
-                stories[storyId] = { id: storyId, title: title, transcript: transcript, notes: '' };
-                document.getElementById('save-status').textContent = `Đã lưu bài học mới: ${title}!`;
+                updateTranscriptList(); 
             }
             
-            saveStories(stories);
-            document.getElementById('save-status').style.color = 'green';
-            
-            // Tải bài vừa tạo/sửa
-            loadStory(storyId); 
-            
-            // Reset form sau khi lưu thành công bài mới (nếu đang ở chế độ tạo mới)
-            if (!storyToEditId) {
-                resetLessonForm();
-            } else {
-                storyToEditId = null; 
+             if (tabId === 'manager') {
+                document.getElementById('edit-story-btn').style.display = 'none';
+                loadSavedStories(); 
+                // Khi vào tab Manager, hiển thị khu vực Tạo bài mới và ẩn khu vực Sửa bài (chỉ hiện khi bấm Sửa)
+                document.getElementById('create-new-story-section').style.display = '';
+                document.getElementById('edit-story-section').style.display = 'none'; 
+            } else if (tabId === 'dictiation-page') {
+                 document.getElementById('edit-story-btn').style.display = (isAdmin && currentStory) ? 'inline-block' : 'none';
             }
         }
-        
-        function exportData() {
-            if (!IS_ADMIN_MODE) { alert('Chức năng này chỉ dành cho Admin.'); return; }
-            const stories = getSavedStoriesFinal();
-            
-            const exportableStories = {};
-            for (const key in stories) {
-                // Chỉ xuất các thuộc tính cần thiết, và xử lý ký tự xuống dòng
-                exportableStories[key] = {
-                    id: stories[key].id,
-                    title: stories[key].title,
-                    transcript: stories[key].transcript.replace(/\n/g, '\\n'),
-                    notes: '' 
-                };
-            }
-            
-            const jsonString = JSON.stringify(exportableStories, null, 4);
-            
-            const codeOutput = `
-// =================================================================
-// DỮ LIỆU BÀI HỌC ĐÃ XUẤT (DÁN KHỐI NÀY THAY THẾ KHỐI initialStories GỐC)
-// =================================================================
-const initialStories = ${jsonString.replace(/\\\\n/g, '\\n')};
-// =================================================================
-// HẾT DỮ LIỆU BÀI HỌC ĐÃ XUẤT
-// =================================================================
-            `;
-
-            navigator.clipboard.writeText(codeOutput).then(() => {
-                alert("Đã COPY dữ liệu bài học vào clipboard. Bạn hãy DÁN (PASTE) khối mã này thay thế cho khối 'initialStories' trong file CODE này để cập nhật bản chia sẻ!");
-            }).catch(err => {
-                console.error('Không thể copy mã: ', err);
-                prompt("Sao chép thủ công khối dữ liệu sau:", codeOutput);
-            });
-        }
-        
-        // =================================================================
-        // HÀM XỬ LÝ DICTATION
-        // =================================================================
-
-        function loadStory(id) {
-            const stories = getSavedStoriesFinal();
-            const story = stories[id];
-            if (!story) return;
-            
-            if (isSpeaking) { speechSynth.cancel(); isSpeaking = false; }
-
-            currentStoryId = id;
-            rawTranscript = story.transcript.trim(); 
-            
-            sentences = rawTranscript.split(/([\.?!])\s*/g).reduce((acc, part, index, array) => {
-                if (index % 2 === 0 && part.trim().length > 0) {
-                    const fullSentence = part.trim() + (array[index + 1] || '');
-                    acc.push(fullSentence.trim());
-                }
-                return acc;
-            }, []).filter(s => s.length > 0); 
-
-            currentSentenceIndex = 0;
-            
-            document.getElementById('current-story-title').textContent = story.title;
-            document.getElementById('user-notes').value = story.notes; 
-            
-            totalDuration = sentences.length * 3; 
-            updateMockAudioTime(0, totalDuration);
-
-            renderTranscriptList();
-            
-            enableStudyButtons();
-            updateDictationArea();
-            
-            document.getElementById('full-transcript-text').textContent = rawTranscript;
-
-            const editBtn = document.getElementById('edit-story-btn');
-            // Đảm bảo nút Sửa Bài Học được hiển thị nếu Admin đã đăng nhập
-            if (IS_ADMIN_MODE) { editBtn.style.display = 'inline-block'; } else { editBtn.style.display = 'none'; }
-            
-            openTab('dictiation-page', document.querySelector('.tab-controls button:nth-child(1)'));
-        }
-
-        function updateDictationArea() {
-            document.getElementById('total-sentences').textContent = sentences.length;
-            document.getElementById('current-sentence-index').textContent = currentSentenceIndex + 1;
-            document.getElementById('user-input').value = '';
-            document.getElementById('feedback-area').innerHTML = ''; 
-            
-            if (sentences.length === 0) return;
-
-            if (currentSentenceIndex >= sentences.length) {
-                alert('Hoàn thành bài Dictiation!');
-                currentSentenceIndex = 0; 
-                return;
-            }
-
-            if (sentences.length > 0) {
-                // Tự động play sau khi chuyển câu
-                document.getElementById('read-sentence-btn').click(); 
-                document.getElementById('user-input').focus();
-            }
-        }
-        
-        document.getElementById('read-sentence-btn').onclick = () => {
-            if (!sentences[currentSentenceIndex]) return;
-            const sentence = sentences[currentSentenceIndex];
-            const rate = parseFloat(document.getElementById('speech-rate').value);
-            speak(sentence, rate);
-        };
-        
-        document.getElementById('check-btn').onclick = () => { 
-             if (!sentences[currentSentenceIndex]) return;
-             
-             const expectedRaw = sentences[currentSentenceIndex];
-             const normalize = (text) => text.replace(/[\.?!,"]/g, '').toLowerCase().trim();
-             const expected = normalize(expectedRaw).split(/\s+/).filter(w => w.length > 0);
-             const actual = normalize(document.getElementById('user-input').value).split(/\s+/).filter(w => w.length > 0);
-             const feedbackArea = document.getElementById('feedback-area');
-             
-             feedbackArea.innerHTML = ''; 
-             let resultHTML = 'Kết quả: ';
-             let isCorrect = true;
-             let longestLength = Math.max(expected.length, actual.length);
-
-             for (let i = 0; i < longestLength; i++) {
-                 const expectedWord = expected[i] || '';
-                 const actualWord = actual[i] || '';
-
-                 if (actualWord === expectedWord && expectedWord !== '') {
-                     resultHTML += `<span class="correct">${actualWord}</span> `;
-                 } else {
-                     isCorrect = false;
-                     const displayWord = actualWord === '' ? `[${expectedWord}]` : actualWord;
-                     resultHTML += `<span class="incorrect">${displayWord}</span> `; 
-                 }
-             }
-             
-             feedbackArea.innerHTML += resultHTML;
-             
-             if (isCorrect && actual.length === expected.length) {
-                 feedbackArea.innerHTML += '<p style="color: green; margin-top: 10px;">Tuyệt vời! Câu trả lời hoàn toàn chính xác.</p>';
-             } else {
-                 feedbackArea.innerHTML += '<p style="color: red; margin-top: 10px;">Vẫn còn lỗi. Hãy nghe lại và thử lần nữa.</p>';
-             }
-        };
-        
-        function navigateNextSentence() { 
-            currentSentenceIndex++; 
-            updateDictationArea(); 
-        }
-        
-        document.getElementById('skip-btn').onclick = () => { if (confirm("Bạn có muốn bỏ qua câu này và chuyển sang câu tiếp theo không?")) { navigateNextSentence(); } };
-        document.getElementById('next-play-btn').onclick = () => { navigateNextSentence(); };
-        
-        // =================================================================
-        // CÁC HÀM PHỤ TRỢ (Mô phỏng & Điều khiển)
-        // =================================================================
-        
-        function openTab(tabName, elmnt) {
-            if (isSpeaking) { speechSynth.cancel(); isSpeaking = false; }
-            document.querySelectorAll(".tab-content").forEach(el => el.classList.add('hidden'));
-            document.getElementById(tabName).classList.remove('hidden');
-            document.querySelectorAll(".tab-button").forEach(el => el.classList.remove("active"));
-            elmnt.classList.add("active");
-            
-            const adminWarning = document.getElementById('admin-warning');
-            if (tabName === 'manager' && !IS_ADMIN_MODE) {
-                adminWarning.style.display = 'block';
-            } else {
-                adminWarning.style.display = 'none';
-            }
-        }
-        
-        function speak(text, rate, callback = null) {
-            if (isSpeaking) { speechSynth.cancel(); }
-            currentUtterance = new SpeechSynthesisUtterance(text);
-            currentUtterance.rate = rate;
-            currentUtterance.lang = 'en-GB'; 
-            currentUtterance.onstart = () => { isSpeaking = true; };
-            currentUtterance.onend = () => { isSpeaking = false; if (callback) callback(); };
-            currentUtterance.onerror = (event) => { isSpeaking = false; console.error('Speech synthesis error:', event.error); };
-            speechSynth.speak(currentUtterance);
-        }
-        
-        function renderTranscriptList() {
-            const list = document.getElementById('transcript-list');
-            list.innerHTML = '';
-
-            if (sentences.length === 0) { list.innerHTML = '<li>Chưa có nội dung bài học.</li>'; return; }
-
-            sentences.forEach((sentence, index) => {
-                const li = document.createElement('li');
-                li.id = `s-${index}`;
-
-                const playBtn = document.createElement('button');
-                playBtn.className = 'play-small-btn';
-                playBtn.innerHTML = '▶';
-                playBtn.onclick = () => {
-                    const rate = parseFloat(document.getElementById('speech-rate').value);
-                    speak(sentence, rate);
-                };
-
-                const textSpan = document.createElement('span');
-                textSpan.className = 'sentence-text';
-                textSpan.textContent = sentence;
-
-                li.appendChild(playBtn);
-                li.appendChild(textSpan);
-                list.appendChild(li);
-            });
-        }
-        
-        function enableStudyButtons() {
-             document.getElementById('read-sentence-btn').disabled = false;
-             document.getElementById('check-btn').disabled = false;
-             document.getElementById('skip-btn').disabled = false;
-             document.getElementById('next-play-btn').disabled = false;
-             document.getElementById('translate-btn').disabled = false; 
-        }
-
-        function resetStudyArea() {
-            document.getElementById('current-story-title').textContent = 'Chưa có bài nào được chọn.';
-            document.getElementById('transcript-list').innerHTML = '<li>Chưa có nội dung bài học. Vui lòng tải bài học.</li>';
-            document.getElementById('full-transcript-text').textContent = 'Văn bản đầy đủ sẽ hiển thị tại đây khi bài học được tải.';
-            document.getElementById('user-notes').value = '';
-            
-            document.getElementById('read-sentence-btn').disabled = true;
-            document.getElementById('check-btn').disabled = true;
-            document.getElementById('skip-btn').disabled = true;
-            document.getElementById('next-play-btn').disabled = true;
-            document.getElementById('translate-btn').disabled = true;
-
-            document.getElementById('total-sentences').textContent = 0;
-            document.getElementById('current-sentence-index').textContent = 0;
-            document.getElementById('user-input').value = '';
-            document.getElementById('feedback-area').innerHTML = '';
-            
-            document.getElementById('edit-story-btn').style.display = 'none';
-        }
-        
-        function updateMockAudioTime(current, total) { 
-            // Mock function 
-        }
-        function toggleFullPlay() { 
-            // Mock function 
-        }
-        function saveNotes() { 
-            const stories = getSavedStoriesFinal();
-            if (currentStoryId && stories[currentStoryId]) {
-                 stories[currentStoryId].notes = document.getElementById('user-notes').value;
-                 localStorage.setItem('savedStories', JSON.stringify(stories));
-                 document.getElementById('note-status').textContent = 'Đã lưu ghi chú!';
-            }
-        }
-        function translateSentence() { 
-            if (!sentences[currentSentenceIndex]) return;
-            const sentence = sentences[currentSentenceIndex];
-            const feedbackArea = document.getElementById('feedback-area');
-            
-            const mockTranslation = "Dịch: Đây là bản dịch mô phỏng của câu: " + sentence + " (Chức năng dịch cần API bên ngoài).";
-            
-            let content = feedbackArea.innerHTML;
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(content, 'text/html');
-            const oldTranslation = doc.querySelector('.translation');
-            
-            if (oldTranslation) oldTranslation.remove(); 
-
-            const newTranslationHTML = `<div class="translation" style="background-color: #fff3cd; color: #333; margin-top: 10px; padding: 8px; border-radius: 4px; font-style: italic;">${mockTranslation}</div>`;
-            feedbackArea.innerHTML += newTranslationHTML;
-        }
-
-
-        // =================================================================
-        // KHỞI TẠO
-        // =================================================================
         
         document.addEventListener('DOMContentLoaded', () => {
-            // Kiểm tra trạng thái admin đã lưu
-            if (localStorage.getItem('isAdmin') === 'true' && ADMIN_PASSWORD !== "") {
-                 IS_ADMIN_MODE = true;
+            setupSampleStory();
+            
+            document.getElementById('check-btn').onclick = checkInput;
+            document.getElementById('user-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') checkInput();
+            });
+
+            document.getElementById('skip-btn').onclick = skipSentence;
+            document.getElementById('next-play-btn').onclick = () => nextSentence(true);
+            document.getElementById('read-sentence-btn').onclick = () => {
+                if (currentSentenceIndex >= 0 && currentSentenceIndex < sentences.length) {
+                    const rate = parseFloat(document.getElementById('speech-rate').value);
+                    speak(sentences[currentSentenceIndex], rate);
+                }
+            };
+            
+            const rateInput = document.getElementById('speech-rate');
+            const rateDisplay = document.getElementById('rate-display');
+            rateInput.addEventListener('input', () => {
+                rateDisplay.textContent = `${rateInput.value}x`;
+            });
+            
+            populateVoices(); 
+            loadSavedStories();
+            // Lần đầu tải bài mẫu
+            const stories = JSON.parse(localStorage.getItem('savedStories')) || {};
+            const defaultTitle = stories['The Snow Day'] ? 'The Snow Day' : Object.keys(stories)[0];
+            if (defaultTitle) {
+                loadStory(defaultTitle);
+            } else {
+                 // Nếu không có bài nào, hiển thị mặc định
+                 document.getElementById('current-story-title').textContent = 'Chưa có bài nào được chọn.';
             }
             
-            updateAdminModeUI(); 
+            // Thiết lập trạng thái ban đầu: CHẾ ĐỘ NGƯỜI DÙNG (isAdmin = false)
+            toggleAdminControls(false); 
+            document.getElementById('toggle-admin-btn').textContent = 'Đăng nhập Admin';
             
-            const stories = getSavedStoriesFinal(); 
-            renderSavedStories(); 
-            
-            const firstStoryId = Object.keys(stories)[0];
-            if (firstStoryId) { loadStory(firstStoryId); } else { resetStudyArea(); }
-            
-            const rateSlider = document.getElementById('speech-rate');
-            const rateDisplay = document.getElementById('rate-display');
-            rateSlider.oninput = () => { rateDisplay.textContent = `${rateSlider.value}x`; };
+            // Ẩn khu vực chỉnh sửa riêng biệt
+            document.getElementById('edit-story-section').style.display = 'none';
         });
-        
+
     </script>
 </body>
 </html>
