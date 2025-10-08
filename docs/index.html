@@ -121,9 +121,14 @@
         #story-title-input { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         #new-transcript-input { width: 100%; height: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; resize: vertical; font-size: 14px; }
         
-        /* ẨN NÚT LƯU BÀI HỌC MỚI VÀ NÚT XÓA TRONG BẢN CÔNG KHAI */
-        #save-story-btn { display: none; } /* ẨN NÚT LƯU BÀI MỚI */
-        .delete-btn { display: none; }     /* ẨN NÚT XÓA BÀI HỌC CŨ */
+        /* ẨN TOÀN BỘ PHẦN TẠO BÀI HỌC MỚI */
+        /* Đây là khối div đầu tiên có class manager-group */
+        #manager .manager-group:first-child { 
+            display: none !important; 
+        }
+        
+        /* ẨN NÚT XÓA BÊN CẠNH DANH SÁCH BÀI HỌC CŨ */
+        .delete-btn { display: none; }
         
         #saved-stories-list { list-style: none; padding: 0; }
         #saved-stories-list li { padding: 10px; margin-bottom: 8px; border: 1px solid #eee; border-radius: 6px; background-color: #fff; display: flex; justify-content: space-between; align-items: center; }
@@ -138,7 +143,8 @@
         <div class="tab-controls">
             <button class="tab-button active" onclick="openTab('dictiation-page', this)">Dictiation</button>
             <button class="tab-button" onclick="openTab('transcript-page', this)">Full Transcript</button>
-            <button class="tab-button" onclick="openTab('manager', this)">Bài học</button> </div>
+            <button class="tab-button" onclick="openTab('manager', this)">Bài học</button> 
+        </div>
 
         <div id="controls-area">
             <p>Bài học đang mở: <strong id="current-story-title">Chưa có bài nào được chọn.</strong></p>
@@ -214,7 +220,8 @@
                 <label for="new-transcript-input">Nội dung Bài Học (Full Transcript - Dán Text vào đây):</label>
                 <textarea id="new-transcript-input" placeholder="Chức năng này chỉ dành cho chủ ứng dụng (Admin)." readonly></textarea>
                 
-                <button id="save-story-btn">Lưu Bài Học Mới</button> <p id="save-status" style="margin-top: 10px; font-size: 0.9em; color: red;">Để thêm/sửa bài, vui lòng dùng phiên bản riêng của Admin (chủ ứng dụng).</p>
+                <button id="save-story-btn">Lưu Bài Học Mới</button> 
+                <p id="save-status" style="margin-top: 10px; font-size: 0.9em; color: red;"></p>
             </div>
 
             <div class="manager-group">
@@ -266,7 +273,6 @@ My mom has to shovel the driveway.
                 speechSynth.cancel();
                 isSpeaking = false;
                 isFullPlaying = false;
-                // Đảm bảo nút play mô phỏng được reset
                 const mockPlayBtn = document.querySelector('#audio-player-mock .play-btn-mock');
                 if (mockPlayBtn) mockPlayBtn.textContent = '▶'; 
                 document.querySelectorAll('#transcript-list .sentence-text').forEach(span => span.classList.remove('highlight'));
@@ -292,6 +298,7 @@ My mom has to shovel the driveway.
         
         function getSavedStories() {
             const stories = JSON.parse(localStorage.getItem('savedStories')) || {};
+            // Tải bài học mẫu nếu không có gì trong localStorage (lần đầu tiên)
             if (Object.keys(stories).length === 0) {
                 stories[defaultStory.id] = defaultStory;
                 localStorage.setItem('savedStories', JSON.stringify(stories));
@@ -300,6 +307,7 @@ My mom has to shovel the driveway.
         }
 
         function saveStories(stories) {
+            // Lưu dữ liệu vào localStorage
             localStorage.setItem('savedStories', JSON.stringify(stories));
             renderSavedStories();
         }
@@ -318,11 +326,10 @@ My mom has to shovel the driveway.
                 nameSpan.textContent = story.title;
                 nameSpan.onclick = () => loadStory(story.id);
 
-                // Nút XÓA (delete-btn) đã được ẩn qua CSS, nhưng hàm này vẫn phải tạo ra cấu trúc nếu cần
+                // Nút XÓA (delete-btn) đã được ẩn qua CSS
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'delete-btn';
                 deleteBtn.textContent = 'Xóa';
-                // Chức năng xóa đã bị loại bỏ/vô hiệu hóa trong bản public
                 deleteBtn.onclick = (e) => {
                     e.stopPropagation(); 
                     alert('Chức năng xóa đã bị khóa trong phiên bản công khai này.');
@@ -334,7 +341,7 @@ My mom has to shovel the driveway.
             });
         }
         
-        // Vô hiệu hóa chức năng Lưu Bài Học Mới
+        // Vô hiệu hóa chức năng Lưu Bài Học Mới (chỉ là dự phòng vì nó đã bị ẩn)
         document.addEventListener('DOMContentLoaded', () => {
              const saveButton = document.getElementById('save-story-btn');
              if (saveButton) {
@@ -345,7 +352,7 @@ My mom has to shovel the driveway.
         });
 
         function deleteStory(id) {
-            // Hàm này vẫn tồn tại nhưng không được gọi từ giao diện public
+            // Hàm này vẫn tồn tại trong code để chủ app có thể dùng phiên bản riêng
             const stories = getSavedStories();
             delete stories[id];
             saveStories(stories);
@@ -376,9 +383,9 @@ My mom has to shovel the driveway.
             currentSentenceIndex = 0;
             
             document.getElementById('current-story-title').textContent = story.title;
-            document.getElementById('user-notes').value = story.notes; // Lấy ghi chú cá nhân
+            // Lấy ghi chú cá nhân (mỗi người dùng có ghi chú riêng)
+            document.getElementById('user-notes').value = story.notes; 
             
-            // Tính thời lượng mô phỏng (khoảng 3 giây/câu)
             totalDuration = sentences.length * 3; 
             updateMockAudioTime(0, totalDuration);
 
@@ -387,13 +394,12 @@ My mom has to shovel the driveway.
             enableStudyButtons();
             updateDictationArea();
             
-            // Cập nhật Full Transcript Text
             document.getElementById('full-transcript-text').textContent = rawTranscript;
 
             openTab('dictiation-page', document.querySelector('.tab-controls button:nth-child(1)'));
         }
 
-        // --- DICTATION PAGE ---
+        // --- DICTATION PAGE (Không đổi) ---
         
         function updateDictationArea() {
             document.getElementById('total-sentences').textContent = sentences.length;
@@ -505,7 +511,7 @@ My mom has to shovel the driveway.
         }
 
 
-        // --- FULL TRANSCRIPT PAGE ---
+        // --- FULL TRANSCRIPT PAGE (Không đổi) ---
 
         function renderTranscriptList() {
             const list = document.getElementById('transcript-list');
@@ -605,7 +611,7 @@ My mom has to shovel the driveway.
         document.querySelector('#audio-player-mock .play-btn-mock').onclick = toggleFullPlay;
 
 
-        // --- GHI CHÚ CÁ NHÂN & KÍCH HOẠT NÚT ---
+        // --- GHI CHÚ CÁ NHÂN & KÍCH HOẠT NÚT (Không đổi) ---
 
         function saveNotes() {
             if (!currentStoryId) {
@@ -657,10 +663,10 @@ My mom has to shovel the driveway.
             updateMockAudioTime(0, 0);
         }
 
-        // --- KHỞI TẠO BAN ĐẦU ---
+        // --- KHỞI TẠO BAN ĐẦU (Không đổi) ---
         
         document.addEventListener('DOMContentLoaded', () => {
-            renderSavedStories(); // Vẫn chạy để hiển thị danh sách bài học
+            renderSavedStories(); 
             loadStory(defaultStory.id); 
         });
         
