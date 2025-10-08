@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Practice English with Hachin</title>
+    <style>
+        /* CSS DÀNH CHO GIAO DIỆN CHUNG VÀ CÁC THÀNH PHẦN */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f9; color: #333; }
+        .container { max-width: 900px; margin: auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
+        h1 { text-align: center; color: #007bff; margin-bottom: 25px; }
+        
+        /* Tab Controls */
+        .tab-controls { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 20px; }
+        .tab-button { background: none; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px; transition: all 0.3s; color: #555; font-weight: 600; border-radius: 8px 8px 0 0; }
+        .tab-button:hover { background-color: #e9ecef; }
+        .tab-button.active { background-color: #007bff; color: white; border-radius: 8px 8px 0 0; }
+        .tab-content { padding: 15px 0; }
+        .tab-content.hidden { display: none; }
+
+        /* Controls Area */
+        #controls-area { padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; background-color: #f8f9fa; }
+        .control-group { margin-bottom: 10px; }
+        .speed-control label { margin-right: 10px; font-weight: 600; }
+
+        /* Dictation */
+        #dictiation-content { padding: 20px 0; }
+        #dictiation-area p { font-size: 1.1em; margin-bottom: 15px; font-weight: 500; }
+        #user-input { width: 100%; padding: 10px; margin: 10px 0; border: 2px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        
+        .dictation-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .dictation-controls button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: background-color 0.3s; }
+        
+        /* Nút Nghe Câu (Play Icon) */
+        #read-sentence-btn { 
+            background: none; 
+            border: none; 
+            cursor: pointer; 
+            font-size: 30px; 
+            color: #28a745;
+            padding: 0;
+            margin-right: 15px;
+            transition: color 0.2s;
+        }
+        #read-sentence-btn:hover { color: #218838; }
+        
+        #check-btn { background-color: #ffc107; color: #333; }
+        #skip-btn { background-color: #17a2b8; color: white; }
+        #next-play-btn { background-color: #007bff; color: white; } 
+        #translate-btn { background-color: #6c757d; color: white; } 
+        
+        /* Feedback */
+        #feedback-area { margin-top: 15px; padding: 15px; border-radius: 6px; min-height: 50px; background-color: #e9ecef; }
+        .correct { color: #28a745; font-weight: bold; }
+        .incorrect { color: #dc3545; font-weight: bold; text-decoration: underline; }
+        .translation { background-color: #fff3cd; color: #333; margin-top: 10px; padding: 8px; border-radius: 4px; font-style: italic; }
+
+        /* Full Transcript - Hiển thị từng câu */
+        #transcript-content { padding: 20px 0; }
+        #transcript-list { list-style: none; padding: 0; }
+        #transcript-list li { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; font-size: 1.1em; transition: background-color 0.2s; }
+        
+        .sentence-text { margin-left: 10px; flex-grow: 1; }
+        .highlight { background-color: #fff3cd; padding: 2px 4px; border-radius: 3px; }
+
+        /* Play Button nhỏ */
+        .play-small-btn { 
+            background-color: #e6f0ff; 
+            border: 1px solid #007bff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer; 
+            color: #007bff; 
+            font-size: 14px; 
+            padding-left: 3px; 
+            transition: all 0.2s;
+        }
+        .play-small-btn::before { content: '▶'; } 
+        .play-small-btn:hover { background-color: #cce0ff; }
+        
+        /* Thanh audio mô phỏng (Full Audio) */
+        #audio-player-mock {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        #audio-player-mock .play-btn-mock { font-size: 18px; cursor: pointer; color: #333; }
+        #audio-player-mock .progress-bar-mock { flex-grow: 1; height: 6px; background-color: #ccc; border-radius: 3px; position: relative; }
+        #audio-player-mock .progress-mock { width: 0%; height: 100%; background-color: #007bff; border-radius: 3px; }
+        #audio-player-mock .time-mock { font-size: 12px; color: #555; white-space: nowrap; }
+        #audio-player-mock .volume-mock { font-size: 16px; cursor: pointer; }
+
+        /* Hiển thị toàn bộ đoạn văn bản (Full Audio Text) */
+        #full-transcript-text {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fafafa;
+            white-space: pre-wrap; /* Giữ nguyên định dạng xuống dòng */
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 20px; 
+        }
+
+        /* CSS DÀNH CHO PHẦN QUẢN LÝ (ẨN TRONG BẢN CÔNG KHAI) */
+        .manager-group { margin-bottom: 25px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        #notes-area { margin-top: 30px; border-top: 2px solid #ddd; padding-top: 20px; }
+        #user-notes { width: 100%; height: 100px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; resize: vertical; font-size: 14px; }
+        .manager-group h3 { color: #007bff; border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-top: 0; }
+        #story-title-input { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        #new-transcript-input { width: 100%; height: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; resize: vertical; font-size: 14px; }
+        #save-story-btn { padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        #saved-stories-list { list-style: none; padding: 0; }
+        #saved-stories-list li { padding: 10px; margin-bottom: 8px; border: 1px solid #eee; border-radius: 6px; background-color: #fff; display: flex; justify-content: space-between; align-items: center; }
+        .story-name { flex-grow: 1; cursor: pointer; color: #007bff; font-weight: 600; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Practice English with Hachin</h1>
+        
+        <div class="tab-controls">
+            <button class="tab-button active" onclick="openTab('dictiation-page', this)">Dictiation</button>
+            <button class="tab-button" onclick="openTab('transcript-page', this)">Full Transcript</button>
+            </div>
+
+        <div id="controls-area">
+            <p>Bài học đang mở: <strong id="current-story-title">Chưa có bài nào được chọn.</strong></p>
+            <div class="speed-control control-group">
+                <label for="speech-rate">Tốc độ đọc:</label>
+                <input type="range" id="speech-rate" min="0.5" max="2" step="0.1" value="1.0">
+                <span id="rate-display">1.0x</span>
+            </div>
+        </div>
+
+        <div id="dictiation-page" class="tab-content">
+            <div id="dictiation-content">
+                <p>Câu hiện tại: <span id="current-sentence-index">0</span> / <span id="total-sentences">0</span></p>
+                
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <button id="read-sentence-btn" disabled>▶</button>
+                    <span style="font-size: 1.1em; font-weight: 500;">Nghe câu</span>
+                </div>
+                
+                <input type="text" id="user-input" placeholder="Gõ lại những gì bạn nghe...">
+                
+                <div class="dictation-controls">
+                    <button id="check-btn" disabled>Check</button>
+                    <button id="skip-btn" disabled>Skip</button>
+                    <button id="next-play-btn" disabled>Next & Play</button>
+                    <button id="translate-btn" disabled onclick="translateSentence()">Dịch Câu</button>
+                </div>
+                
+                <div id="feedback-area"></div>
+                
+                <div id="notes-area">
+                    <h3>Ô Ghi Chú Cá Nhân</h3>
+                    <textarea id="user-notes" placeholder="Ghi chú từ vựng, ngữ pháp, hay bất cứ điều gì bạn muốn lưu lại về bài học này..."></textarea>
+                    <button onclick="saveNotes()" style="margin-top: 10px; padding: 8px 15px; background-color: #6c757d; color: white; border: none; border-radius: 5px;">Lưu Ghi Chú</button>
+                    <p id="note-status" style="margin-top: 5px; font-size: 0.9em; color: green;"></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="transcript-page" class="tab-content hidden">
+            <div id="transcript-content">
+                <h2>Full Transcript (Xem/Nghe)</h2>
+                
+                <div id="audio-player-mock">
+                    <span class="play-btn-mock" onclick="toggleFullPlay()">▶</span>
+                    <span class="time-mock" id="audio-time">0:00 / 0:00</span>
+                    <div class="progress-bar-mock">
+                        <div class="progress-mock" id="audio-progress"></div>
+                    </div>
+                    <span class="volume-mock">🔊</span>
+                    <span class="volume-mock">⋮</span>
+                </div>
+                
+                <h3 style="margin-top: 20px;">Từng Câu</h3>
+                
+                <ul id="transcript-list">
+                    <li>Chưa có nội dung bài học. Vui lòng tạo bài mới hoặc tải bài cũ.</li>
+                </ul>
+                
+                <h3 style="margin-top: 30px;">Toàn bộ Đoạn Văn bản</h3>
+                <div id="full-transcript-text">
+                    Văn bản đầy đủ sẽ hiển thị tại đây khi bài học được tải.
+                </div>
+            </div>
+        </div>
+
+        <div id="manager" class="tab-content hidden">
+            <div class="manager-group">
+                <h3>Tạo Bài Học Mới (Upload Text)</h3>
+                <label for="story-title-input">Tên Bài Học Mới:</label>
+                <input type="text" id="story-title-input" placeholder="Ví dụ: The Fox and the Grapes">
+                
+                <label for="new-transcript-input">Nội dung Bài Học (Full Transcript - Dán Text vào đây):</label>
+                <textarea id="new-transcript-input" placeholder="Dán toàn bộ văn bản tiếng Anh vào đây. Mỗi câu kết thúc bằng dấu chấm/hỏi/than."></textarea>
+                
+                <button id="save-story-btn">Lưu Bài Học Mới</button>
+                <p id="save-status" style="margin-top: 10px; font-size: 0.9em; color: green;"></p>
+            </div>
+
+            <div class="manager-group">
+                <h3>Bài Học Đã Lưu (Bấm để Tải)</h3>
+                <ul id="saved-stories-list">
+                    </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Khởi tạo các biến toàn cục
+        let currentStoryId = null;
+        let sentences = [];
+        let rawTranscript = ''; 
+        let currentSentenceIndex = 0;
+        let isSpeaking = false;
+        const speechSynth = window.speechSynthesis;
+        let currentUtterance = null;
+        let isFullPlaying = false;
+        let fullPlayIndex = 0;
+        let totalDuration = 0; 
+        
+        // Dữ liệu bài học mẫu ban đầu
+        const defaultStory = {
+            id: 'demo_story',
+            title: 'The Snow Day',
+            transcript: `Today is November 26th.
+It snowed all day today.
+The snow is beautiful.
+The snow finally stopped.
+My sister and I are excited.
+My mom doesn't like the snow.
+My mom has to shovel the driveway.
+`,
+            notes: ''
+        };
+        
+        // --- CHỨC NĂNG CHUNG & TTS ---
+        
+        function openTab(tabName, elmnt) {
+            document.querySelectorAll(".tab-content").forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabName).classList.remove('hidden');
+            document.querySelectorAll(".tab-button").forEach(el => el.classList.remove("active"));
+            
+            // Kiểm tra xem elmnt có tồn tại (để tránh lỗi khi nút đã bị ẩn)
+            if (elmnt) {
+                elmnt.classList.add("active");
+            } else if (tabName === 'dictiation-page') {
+                // Nếu không có nút bấm, đảm bảo Dictiation vẫn được active
+                document.querySelector('.tab-controls button:nth-child(1)').classList.add("active");
+            }
+
+            // Dừng đọc khi chuyển tab
+            if (isSpeaking) {
+                speechSynth.cancel();
+                isSpeaking = false;
+                isFullPlaying = false;
+                document.querySelector('#audio-player-mock .play-btn-mock').textContent = '▶';
+                document.querySelectorAll('#transcript-list .sentence-text').forEach(span => span.classList.remove('highlight'));
+            }
+        }
+        
+        function speak(text, rate, callback = null) {
+            if (isSpeaking) {
+                speechSynth.cancel();
+            }
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            currentUtterance.rate = rate;
+            currentUtterance.lang = 'en-GB'; // Giọng Anh-Anh (UK)
+            
+            currentUtterance.onstart = () => { isSpeaking = true; };
+            currentUtterance.onend = () => { isSpeaking = false; if (callback) callback(); };
+            currentUtterance.onerror = (event) => { console.error('Speech synthesis error:', event.error); isSpeaking = false; };
+
+            speechSynth.speak(currentUtterance);
+        }
+
+        // --- QUẢN LÝ BÀI HỌC (MANAGER) - CÁC HÀM NÀY VẪN PHẢI TỒN TẠI ĐỂ DỮ LIỆU CHẠY ĐÚNG ---
+        
+        function getSavedStories() {
+            const stories = JSON.parse(localStorage.getItem('savedStories')) || {};
+            // Tải bài học mẫu nếu không có gì trong localStorage
+            if (Object.keys(stories).length === 0) {
+                stories[defaultStory.id] = defaultStory;
+                localStorage.setItem('savedStories', JSON.stringify(stories));
+            }
+            return stories;
+        }
+
+        function saveStories(stories) {
+            localStorage.setItem('savedStories', JSON.stringify(stories));
+            // Không cần renderSavedStories() trong bản công khai
+        }
+
+        function renderSavedStories() {
+            // Hàm này chỉ chạy trên bản Manager, nhưng cần phải tồn tại
+            const list = document.getElementById('saved-stories-list');
+            list.innerHTML = '';
+            const stories = getSavedStories();
+
+            Object.values(stories).forEach(story => {
+                const li = document.createElement('li');
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'story-name';
+                nameSpan.textContent = story.title;
+                nameSpan.onclick = () => loadStory(story.id);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = 'Xóa';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation(); 
+                    deleteStory(story.id);
+                };
+
+                li.appendChild(nameSpan);
+                li.appendChild(deleteBtn);
+                list.appendChild(li);
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+             // Để tránh lỗi khi không có nút "Bài học"
+             const saveButton = document.getElementById('save-story-btn');
+             if (saveButton) {
+                saveButton.onclick = () => {
+                    // Logic tạo bài mới (đã được giữ lại ở bản Manager)
+                };
+             }
+        });
+
+        function deleteStory(id) {
+            // Logic xóa bài (đã được giữ lại ở bản Manager)
+        }
+        
+        // --- LOAD STORY ---
+        function loadStory(id) {
+            const stories = getSavedStories();
+            const story = stories[id];
+            if (!story) return;
+
+            currentStoryId = id;
+            rawTranscript = story.transcript.trim();
+            
+            // Chia transcript thành các câu
+            sentences = rawTranscript.split(/([\.?!])\s*/g).reduce((acc, part, index, array) => {
+                if (index % 2 === 0 && part.trim().length > 0) {
+                    const fullSentence = part.trim() + (array[index + 1] || '');
+                    acc.push(fullSentence.trim());
+                }
+                return acc;
+            }, []);
+
+            currentSentenceIndex = 0;
+            
+            document.getElementById('current-story-title').textContent = story.title;
+            document.getElementById('user-notes').value = story.notes;
+            
+            totalDuration = sentences.length * 3; 
+            updateMockAudioTime(0, totalDuration);
+
+            renderTranscriptList();
+            
+            enableStudyButtons();
+            updateDictationArea();
+            
+            document.getElementById('full-transcript-text').textContent = rawTranscript;
+
+            // Chuyển về Dictiation (nút 1)
+            openTab('dictiation-page', document.querySelector('.tab-controls button:nth-child(1)'));
+        }
+
+        // --- DICTATION PAGE ---
+        
+        function updateDictationArea() {
+            document.getElementById('total-sentences').textContent = sentences.length;
+            document.getElementById('current-sentence-index').textContent = currentSentenceIndex + 1;
+            document.getElementById('user-input').value = '';
+            document.getElementById('feedback-area').innerHTML = ''; 
+            
+            if (currentSentenceIndex >= sentences.length) {
+                alert('Hoàn thành bài Dictiation! Bạn đã hoàn thành toàn bộ bài học này.');
+                currentSentenceIndex = 0; 
+                updateDictationArea(); 
+                return;
+            }
+
+            if (sentences.length > 0) {
+                document.getElementById('read-sentence-btn').click(); 
+                document.getElementById('user-input').focus();
+            }
+        }
+
+        function navigateNextSentence() {
+            currentSentenceIndex++;
+            updateDictationArea();
+        }
+
+        document.getElementById('read-sentence-btn').onclick = () => {
+            if (!sentences[currentSentenceIndex]) return;
+            const sentence = sentences[currentSentenceIndex];
+            const rate = parseFloat(document.getElementById('speech-rate').value);
+            speak(sentence, rate);
+        };
+
+        document.getElementById('check-btn').onclick = () => {
+            const expectedRaw = sentences[currentSentenceIndex];
+            const normalize = (text) => text.replace(/[\.?!,"]/g, '').toLowerCase().trim();
+            
+            const expected = normalize(expectedRaw).split(/\s+/).filter(w => w.length > 0);
+            const actual = normalize(document.getElementById('user-input').value).split(/\s+/).filter(w => w.length > 0);
+            const feedbackArea = document.getElementById('feedback-area');
+            
+            const existingTranslation = feedbackArea.querySelector('.translation') ? feedbackArea.querySelector('.translation').outerHTML : '';
+            
+            feedbackArea.innerHTML = existingTranslation; // Hiển thị lại phần dịch nếu có
+
+            let resultHTML = 'Kết quả: ';
+            let isCorrect = true;
+            let longestLength = Math.max(expected.length, actual.length);
+
+            for (let i = 0; i < longestLength; i++) {
+                const expectedWord = expected[i] || '';
+                const actualWord = actual[i] || '';
+
+                if (actualWord === expectedWord && expectedWord !== '') {
+                    resultHTML += `<span class="correct">${actualWord}</span> `;
+                } else {
+                    isCorrect = false;
+                    if (actualWord === '') {
+                        resultHTML += `<span class="incorrect">[${expectedWord}]</span> `; 
+                    } else if (expectedWord === '') {
+                        resultHTML += `<span class="incorrect">${actualWord}</span> `; 
+                    } else {
+                        resultHTML += `<span class="incorrect">${actualWord}</span> `; 
+                    }
+                }
+            }
+            
+            feedbackArea.innerHTML += resultHTML;
+            
+            if (isCorrect && actual.length === expected.length) {
+                feedbackArea.innerHTML += '<p style="color: green; margin-top: 10px;">Tuyệt vời! Câu trả lời hoàn toàn chính xác.</p>';
+            } else {
+                feedbackArea.innerHTML += '<p style="color: red; margin-top: 10px;">Vẫn còn lỗi. Hãy nghe lại và thử lần nữa.</p>';
+            }
+        };
+
+        document.getElementById('skip-btn').onclick = () => {
+            if (confirm("Bạn có muốn bỏ qua câu này và chuyển sang câu tiếp theo không?")) {
+                navigateNextSentence();
+            }
+        };
+        
+        document.getElementById('next-play-btn').onclick = () => {
+            navigateNextSentence();
+        };
+
+        function translateSentence() {
+            if (!sentences[currentSentenceIndex]) return;
+            const sentence = sentences[currentSentenceIndex];
+            const feedbackArea = document.getElementById('feedback-area');
+            
+            const mockTranslation = "Dịch: Đây là bản dịch mô phỏng của câu: " + sentence + " (Phần mềm thực tế cần API dịch).";
+            
+            let content = feedbackArea.innerHTML;
+            
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(content, 'text/html');
+            const oldTranslation = doc.querySelector('.translation');
+            
+            const newTranslationHTML = `<div class="translation">${mockTranslation}</div>`;
+            
+            if (oldTranslation) {
+                oldTranslation.remove();
+                content = doc.body.innerHTML;
+            } else {
+                content = feedbackArea.innerHTML;
+            }
+            
+            feedbackArea.innerHTML = newTranslationHTML + content;
+        }
+
+
+        // --- FULL TRANSCRIPT PAGE ---
+
+        function renderTranscriptList() {
+            const list = document.getElementById('transcript-list');
+            list.innerHTML = '';
+
+            if (sentences.length === 0) {
+                 list.innerHTML = '<li>Chưa có nội dung bài học.</li>';
+                 return;
+            }
+
+            sentences.forEach((sentence, index) => {
+                const li = document.createElement('li');
+                li.id = `s-${index}`;
+
+                const playBtn = document.createElement('button');
+                playBtn.className = 'play-small-btn';
+                playBtn.onclick = () => {
+                    const rate = parseFloat(document.getElementById('speech-rate').value);
+                    speak(sentence, rate);
+                    
+                    document.querySelectorAll('#transcript-list .sentence-text').forEach(span => span.classList.remove('highlight'));
+                    li.querySelector('.sentence-text').classList.add('highlight');
+                    
+                    currentUtterance.onend = () => {
+                        li.querySelector('.sentence-text').classList.remove('highlight');
+                    };
+                };
+
+                const textSpan = document.createElement('span');
+                textSpan.className = 'sentence-text';
+                textSpan.textContent = sentence;
+
+                li.appendChild(playBtn);
+                li.appendChild(textSpan);
+                list.appendChild(li);
+            });
+        }
+        
+        function updateMockAudioTime(current, total) {
+            const formatTime = (seconds) => {
+                const min = Math.floor(seconds / 60);
+                const sec = Math.floor(seconds % 60).toString().padStart(2, '0');
+                return `${min}:${sec}`;
+            };
+            document.getElementById('audio-time').textContent = `${formatTime(current)} / ${formatTime(total)}`;
+            const progressPercent = (current / total) * 100;
+            document.getElementById('audio-progress').style.width = `${progressPercent}%`;
+        }
+
+        function toggleFullPlay() {
+            if (isFullPlaying) {
+                speechSynth.cancel();
+                isSpeaking = false;
+                isFullPlaying = false;
+                document.querySelectorAll('#transcript-list .sentence-text').forEach(span => span.classList.remove('highlight'));
+                document.querySelector('#audio-player-mock .play-btn-mock').textContent = '▶';
+                return;
+            }
+            
+            if (sentences.length === 0) return;
+            
+            isFullPlaying = true;
+            fullPlayIndex = 0;
+            document.querySelector('#audio-player-mock .play-btn-mock').textContent = '❚❚';
+            
+            speakNextSentenceFull();
+        }
+
+        function speakNextSentenceFull() {
+            if (!isFullPlaying || fullPlayIndex >= sentences.length) {
+                isFullPlaying = false;
+                document.querySelectorAll('#transcript-list .sentence-text').forEach(span => span.classList.remove('highlight'));
+                document.querySelector('#audio-player-mock .play-btn-mock').textContent = '▶';
+                updateMockAudioTime(totalDuration, totalDuration); 
+                return;
+            }
+            
+            const rate = parseFloat(document.getElementById('speech-rate').value);
+            
+            document.querySelectorAll('#transcript-list .sentence-text').forEach(span => span.classList.remove('highlight'));
+            const currentTextSpan = document.querySelector(`#s-${fullPlayIndex} .sentence-text`);
+            if (currentTextSpan) {
+                currentTextSpan.classList.add('highlight');
+                currentTextSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            const currentTime = Math.min(totalDuration, fullPlayIndex * 3); 
+            updateMockAudioTime(currentTime, totalDuration);
+
+            const sentence = sentences[fullPlayIndex];
+            speak(sentence, rate, () => {
+                fullPlayIndex++;
+                speakNextSentenceFull(); 
+            });
+        }
+
+        document.querySelector('#audio-player-mock .play-btn-mock').onclick = toggleFullPlay;
+
+
+        // --- GHI CHÚ CÁ NHÂN & KÍCH HOẠT NÚT ---
+
+        function saveNotes() {
+            if (!currentStoryId) {
+                document.getElementById('note-status').textContent = 'Vui lòng chọn bài học trước khi lưu ghi chú.';
+                document.getElementById('note-status').style.color = 'red';
+                return;
+            }
+            
+            const notes = document.getElementById('user-notes').value;
+            const stories = getSavedStories();
+            
+            if (stories[currentStoryId]) {
+                stories[currentStoryId].notes = notes;
+                saveStories(stories);
+                document.getElementById('note-status').textContent = 'Ghi chú đã được lưu!';
+                document.getElementById('note-status').style.color = 'green';
+                setTimeout(() => document.getElementById('note-status').textContent = '', 3000);
+            }
+        }
+
+        function enableStudyButtons() {
+             document.getElementById('read-sentence-btn').disabled = false;
+             document.getElementById('check-btn').disabled = false;
+             document.getElementById('skip-btn').disabled = false;
+             document.getElementById('next-play-btn').disabled = false;
+             document.getElementById('translate-btn').disabled = false; 
+             document.querySelector('#audio-player-mock .play-btn-mock').style.pointerEvents = 'auto'; 
+             document.querySelectorAll('.play-small-btn').forEach(btn => btn.disabled = false);
+        }
+
+        function resetStudyArea() {
+            document.getElementById('current-story-title').textContent = 'Chưa có bài nào được chọn.';
+            document.getElementById('transcript-list').innerHTML = '<li>Chưa có nội dung bài học. Vui lòng tạo bài mới hoặc tải bài cũ.</li>';
+            document.getElementById('full-transcript-text').textContent = 'Văn bản đầy đủ sẽ hiển thị tại đây khi bài học được tải.';
+            document.getElementById('user-notes').value = '';
+            
+            document.getElementById('read-sentence-btn').disabled = true;
+            document.getElementById('check-btn').disabled = true;
+            document.getElementById('skip-btn').disabled = true;
+            document.getElementById('next-play-btn').disabled = true;
+            document.getElementById('translate-btn').disabled = true;
+            document.querySelector('#audio-player-mock .play-btn-mock').style.pointerEvents = 'none';
+            
+            document.getElementById('total-sentences').textContent = 0;
+            document.getElementById('current-sentence-index').textContent = 0;
+            document.getElementById('user-input').value = '';
+            document.getElementById('feedback-area').innerHTML = '';
+            updateMockAudioTime(0, 0);
+        }
+
+        // --- KHỞI TẠO BAN ĐẦU ---
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Trong bản công khai, không cần renderSavedStories, chỉ cần tải bài mẫu
+            loadStory(defaultStory.id); 
+        });
+        
+        const rateSlider = document.getElementById('speech-rate');
+        const rateDisplay = document.getElementById('rate-display');
+        rateSlider.oninput = () => {
+            rateDisplay.textContent = `${rateSlider.value}x`;
+        };
+    </script>
+</body>
+</html>
