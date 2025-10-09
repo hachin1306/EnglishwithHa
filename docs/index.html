@@ -314,21 +314,42 @@
         let startTime = 0;
         let totalDuration = 0; 
         let totalDurationDisplay = "0:00"; 
+        // Thời gian ước tính cho mỗi câu (giả lập)
+        const MOCK_SENTENCE_DURATION = 3; 
+        
+        // Tùy chọn ưu tiên giọng đọc (Google, Microsoft, Apple, default)
+        const VOICE_PREFERENCE = "Google"; 
 
 
         // *** HÀM LẤY GIỌNG ĐỌC VÀ KHỞI TẠO ***
         function populateVoices() {
             voices = synth.getVoices();
-            englishVoice = voices.find(voice => voice.lang.startsWith('en-US') || voice.lang.startsWith('en-GB'));
             
+            // 1. Tìm giọng đọc Tiếng Anh theo preference (Ưu tiên giọng Google/Microsoft/Apple vì thường có ngữ điệu tốt hơn)
+            englishVoice = voices.find(voice => 
+                voice.lang.startsWith('en') && voice.name.includes(VOICE_PREFERENCE)
+            );
+
+            // 2. Nếu không tìm thấy, tìm giọng Tiếng Anh bất kỳ (US/GB)
+            if (!englishVoice) {
+                englishVoice = voices.find(voice => 
+                    voice.lang.startsWith('en-US') || voice.lang.startsWith('en-GB')
+                );
+            }
+            
+            // 3. Nếu vẫn không có, lấy giọng Tiếng Anh đầu tiên
             if (!englishVoice) {
                 englishVoice = voices.find(voice => voice.lang.startsWith('en'));
             }
+
             if (englishVoice) {
-                 console.log("Đã chọn giọng đọc:", englishVoice.name);
+                 console.log("Đã chọn giọng đọc ưu tiên:", englishVoice.name, englishVoice.lang);
+            } else {
+                 console.warn("Không tìm thấy giọng đọc Tiếng Anh. Sẽ dùng giọng mặc định của trình duyệt.");
             }
         }
         
+        // Thường cần phải chờ voices load xong
         if (synth.onvoiceschanged !== undefined) {
             synth.onvoiceschanged = populateVoices;
         } else {
@@ -352,10 +373,17 @@
                 return;
             }
             
+            // Nếu không phải full play, hủy các đoạn đọc trước đó
             if (!isFullPlay) {
                 synth.cancel();
+            } else {
+                 // Nếu là full play, kiểm tra xem có đang đọc câu nào không
+                if (synth.speaking) {
+                    // Nếu đang đọc, không gọi speak nữa, chờ onend của utterance hiện tại
+                    return; 
+                }
             }
-
+            
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = rate;
             
@@ -365,11 +393,15 @@
             utterance.lang = 'en-US'; 
             
             utterance.onend = () => {
-                if (callback) callback();
+                // Thêm một chút delay để mô phỏng khoảng cách giữa các câu
+                setTimeout(() => {
+                    if (callback) callback();
+                }, isFullPlay ? 300 : 0); // 0.3 giây delay giữa các câu khi full play
             };
             
             utterance.onerror = (event) => {
                  console.error('Lỗi Speech Synthesis:', event.error);
+                 // Vẫn gọi callback để chuyển câu nếu bị lỗi
                  if (callback) callback();
             };
             
@@ -451,14 +483,14 @@
                 document.getElementById('note-status').style.color = 'red';
                 return;
             }
-            const notes = localStorage.getItem(`notes_${currentStory.title}`) || '';
-            const newNotes = document.getElementById('user-notes').value;
+            const notes = document.getElementById('user-notes').value;
+            const existingNotes = localStorage.getItem(`notes_${currentStory.title}`) || '';
             
-            if (newNotes === notes) {
+            if (notes === existingNotes) {
                 document.getElementById('note-status').textContent = "Ghi chú không thay đổi.";
                 document.getElementById('note-status').style.color = 'orange';
             } else {
-                localStorage.setItem(`notes_${currentStory.title}`, newNotes);
+                localStorage.setItem(`notes_${currentStory.title}`, notes);
                 document.getElementById('note-status').textContent = "Đã lưu ghi chú thành công!";
                 document.getElementById('note-status').style.color = 'green';
             }
@@ -543,8 +575,9 @@
             currentSentenceIndex = -1; 
             currentFullSentenceIndex = 0; 
             
-            // Tính toán Duration Mock (3 giây mỗi câu)
-            totalDuration = sentences.length * 3; 
+            // Tính toán Duration Mock (MOCK_SENTENCE_DURATION + 0.3s delay mỗi câu)
+            totalDuration = sentences.length * (MOCK_SENTENCE_DURATION + 0.3) - 0.3; 
+            if (totalDuration < 0) totalDuration = 0;
             totalDurationDisplay = formatTime(totalDuration);
 
             document.getElementById('current-story-title').textContent = title;
@@ -651,7 +684,13 @@
         
         function readNextFullSentence() {
             if (!isFullPlaying || currentFullSentenceIndex >= sentences.length) {
-                if(currentFullSentenceIndex >= sentences.length) toggleFullPlay(); 
+                // Đã hoàn thành phát lại
+                if (currentFullSentenceIndex >= sentences.length) {
+                     clearInterval(fullPlaybackInterval);
+                     isFullPlaying = false;
+                     document.getElementById('full-play-btn').textContent = '↻'; // Hoàn thành, đổi thành Replay
+                     updateTranscriptList(); 
+                }
                 return;
             }
             
@@ -666,9 +705,12 @@
                 currentLi.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
             }
             
+            // Tăng chỉ số câu trước khi gọi speak (sẽ gọi lại readNextFullSentence sau khi câu hiện tại kết thúc)
+            currentFullSentenceIndex++;
+
             speak(sentence, rate, () => {
-                currentFullSentenceIndex++;
-                readNextFullSentence();
+                // Hàm callback này được gọi sau khi câu hiện tại đã đọc xong
+                readNextFullSentence(); 
             }, true); 
         }
 
@@ -689,24 +731,41 @@
                 updateTranscriptList(); 
             } else {
                 // PLAY
-                if (currentFullSentenceIndex >= sentences.length) {
+                
+                // Nếu đang ở cuối bài (nút là ↻), reset lại về đầu
+                if (playBtn.textContent === '↻') {
                     currentFullSentenceIndex = 0; 
                     currentFullTime = 0;
+                    startTime = performance.now(); 
+                } else if (currentFullSentenceIndex === 0) {
+                    startTime = performance.now(); 
+                } else {
+                     // Tiếp tục từ thời điểm pause
+                    startTime = performance.now() - currentFullTime * 1000;
                 }
                 
                 playBtn.textContent = '⏸';
                 isFullPlaying = true;
-                startTime = performance.now() - currentFullTime * 1000; 
                 
+                // Bắt đầu đọc (sẽ đọc câu hiện tại: currentFullSentenceIndex)
                 readNextFullSentence();
 
+                // Bắt đầu cập nhật thanh tiến trình mô phỏng
+                clearInterval(fullPlaybackInterval);
                 fullPlaybackInterval = setInterval(() => {
+                    if (!isFullPlaying) {
+                        // Nếu bị pause từ hàm khác (ví dụ: lỗi), dừng interval
+                        clearInterval(fullPlaybackInterval);
+                        return;
+                    }
+
                     const elapsedTime = (performance.now() - startTime) / 1000;
                     currentFullTime = elapsedTime;
 
+                    // Giữ thanh tiến trình không vượt quá tổng thời gian
                     if (currentFullTime >= totalDuration) {
                         currentFullTime = totalDuration;
-                        toggleFullPlay(); 
+                        // Chờ callback onend của câu cuối cùng để dừng hoàn toàn (logic trong readNextFullSentence)
                     }
 
                     const progress = (currentFullTime / totalDuration) * 100;
@@ -1007,10 +1066,19 @@ We go inside for hot chocolate.`;
             const rateDisplay = document.getElementById('rate-display');
             rateInput.addEventListener('input', () => {
                 rateDisplay.textContent = `${rateInput.value}x`;
+                // Nếu đang đọc, hủy và đọc lại với tốc độ mới
+                if (synth.speaking) {
+                    synth.cancel();
+                    // Nếu đang full play, tự động play lại
+                    if (isFullPlaying) {
+                        setTimeout(() => toggleFullPlay(), 200);
+                    }
+                }
             });
             
             populateVoices(); 
             loadSavedStories();
+            
             // Lần đầu tải bài mẫu hoặc bài đầu tiên
             const stories = JSON.parse(localStorage.getItem('savedStories')) || {};
             const defaultTitle = stories['The Snow Day'] ? 'The Snow Day' : Object.keys(stories)[0];
