@@ -845,7 +845,6 @@
 
         function deleteStory(title) {
             if (!isAdmin) return;
-            if (title === "The Snow Day") { alert("Không được phép xóa bài học mẫu."); return; }
             if (!confirm(`Bạn có chắc chắn muốn xóa bài học "${title}"?`)) return;
 
             let stories = JSON.parse(localStorage.getItem('savedStories')) || {};
