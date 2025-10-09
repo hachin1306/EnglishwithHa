@@ -56,7 +56,17 @@
         /* Notes & Manager */
         #user-notes { width: 100%; height: 100px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; resize: vertical; font-size: 14px; }
         .manager-group { margin-bottom: 25px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
-        
+
+        /* VỊ TRÍ MỚI CHO GHI CHÚ (TAB FULL TRANSCRIPT) */
+        #notes-area { 
+            margin-top: 15px; 
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+
         /* ADMIN AUTH */
         #admin-auth { text-align: right; margin-bottom: 10px; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
         #admin-auth input { border: 1px solid #ccc; padding: 5px; width: 150px; }
@@ -137,13 +147,13 @@
             align-items: center; 
             padding: 8px 0; 
             border-bottom: 1px dotted #eee;
-            cursor: pointer; 
         }
         .story-title-link {
             text-decoration: none;
             color: #333;
             flex-grow: 1;
-            cursor: pointer; 
+            cursor: pointer; /* Quan trọng để người dùng biết có thể bấm */
+            padding: 5px 0; /* Tăng diện tích bấm */
         }
         .story-title-link:hover {
             color: #007bff;
@@ -200,13 +210,6 @@
                 </div>
                 
                 <div id="feedback-area"></div>
-                
-                <div id="notes-area">
-                    <h3>Ô Ghi Chú Cá Nhân</h3>
-                    <textarea id="user-notes" placeholder="Ghi chú từ vựng, ngữ pháp, hay bất cứ điều gì bạn muốn lưu lại về bài học này..."></textarea>
-                    <button onclick="saveNotes()" style="margin-top: 10px; padding: 8px 15px; background-color: #6c757d; color: white; border: none; border-radius: 5px;">Lưu Ghi Chú</button>
-                    <p id="note-status" style="margin-top: 5px; font-size: 0.9em; color: green;"></p>
-                </div>
             </div>
         </div>
 
@@ -223,6 +226,12 @@
                     <span class="volume-mock">🔊</span>
                 </div>
                 
+                <div id="notes-area">
+                    <h3>Ô Ghi Chú Cá Nhân</h3>
+                    <textarea id="user-notes" placeholder="Ghi chú từ vựng, ngữ pháp, hay bất cứ điều gì bạn muốn lưu lại về bài học này..."></textarea>
+                    <button onclick="saveNotes()" style="margin-top: 10px; padding: 8px 15px; background-color: #6c757d; color: white; border: none; border-radius: 5px;">Lưu Ghi Chú</button>
+                    <p id="note-status" style="margin-top: 5px; font-size: 0.9em; color: green;"></p>
+                </div>
                 <h3 style="margin-top: 20px;">Từng Câu</h3>
                 
                 <ul id="transcript-list">
@@ -388,20 +397,8 @@
             });
 
             titles.forEach(title => {
-                const story = stories[title];
-                
                 const storyDiv = document.createElement('div');
                 storyDiv.className = 'story-item';
-                
-                // Gán Event Listener để chọn bài học vào DIV cha
-                storyDiv.addEventListener('click', () => {
-                    document.getElementById('edit-story-section').style.display = 'none';
-                    // Đảm bảo khu vực tạo bài mới hiện lại nếu đang ở chế độ Admin
-                    if (isAdmin) {
-                         document.getElementById('create-new-story-section').style.display = ''; 
-                    }
-                    loadStory(title);
-                });
                 
                 // --- 1. Link Bài Học (Chức năng chọn bài) ---
                 const titleLink = document.createElement('span'); 
@@ -411,10 +408,12 @@
                      titleLink.textContent += " (Bài học mẫu)";
                 }
                 
+                // Dòng quan trọng: Gán sự kiện onclick để tải bài học
+                titleLink.setAttribute('onclick', `handleStorySelection('${title}')`);
+
                 storyDiv.appendChild(titleLink);
 
                 // --- 2. Nút Xóa (Admin Only) ---
-                // Chỉ tạo nút xóa nếu là Admin
                 if (isAdmin) {
                     const deleteBtn = document.createElement('button');
                     deleteBtn.textContent = 'Xóa';
@@ -435,6 +434,16 @@
                 listContainer.appendChild(storyDiv);
             });
         }
+        
+        // HÀM MỚI: Xử lý việc chọn bài học từ danh sách
+        function handleStorySelection(title) {
+            document.getElementById('edit-story-section').style.display = 'none';
+            if (isAdmin) {
+                 document.getElementById('create-new-story-section').style.display = ''; 
+            }
+            loadStory(title);
+        }
+
 
         function saveNotes() {
             if (!currentStory) {
@@ -534,6 +543,7 @@
             currentSentenceIndex = -1; 
             currentFullSentenceIndex = 0; 
             
+            // Tính toán Duration Mock (3 giây mỗi câu)
             totalDuration = sentences.length * 3; 
             totalDurationDisplay = formatTime(totalDuration);
 
@@ -544,6 +554,7 @@
             document.getElementById('user-input').value = '';
             document.getElementById('feedback-area').innerHTML = '';
             
+            // Tải ghi chú mới
             loadNotes();
             updateTranscriptList();
             
@@ -581,6 +592,7 @@
         function checkInput() {
             if (currentSentenceIndex < 0 || currentSentenceIndex >= sentences.length) return;
 
+            // Xóa dấu câu, viết thường để so sánh cốt lõi
             const expected = sentences[currentSentenceIndex].trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
             const actual = document.getElementById('user-input').value.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
             const originalSentence = sentences[currentSentenceIndex];
@@ -650,6 +662,7 @@
             
             const currentLi = document.getElementById(`full-s-${currentFullSentenceIndex}`);
             if (currentLi) {
+                // Tự động cuộn đến câu đang đọc
                 currentLi.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
             }
             
@@ -901,6 +914,7 @@
             stories[newTitle] = { title: newTitle, content: newContent };
             localStorage.setItem('savedStories', JSON.stringify(stories));
 
+            // Tải lại bài học với tên mới (nếu có)
             loadStory(newTitle); 
             
             status.textContent = `Đã cập nhật bài học "${newTitle}" thành công!`;
@@ -957,6 +971,8 @@ We go inside for hot chocolate.`;
             if (tabId !== 'transcript-page') {
                 resetFullAudioMock();
             } else {
+                // Tải lại ghi chú mỗi khi mở tab Transcript
+                loadNotes(); 
                 updateTranscriptList(); 
             }
             
@@ -996,7 +1012,7 @@ We go inside for hot chocolate.`;
             
             populateVoices(); 
             loadSavedStories();
-            // Lần đầu tải bài mẫu
+            // Lần đầu tải bài mẫu hoặc bài đầu tiên
             const stories = JSON.parse(localStorage.getItem('savedStories')) || {};
             const defaultTitle = stories['The Snow Day'] ? 'The Snow Day' : Object.keys(stories)[0];
             if (defaultTitle) {
@@ -1004,6 +1020,8 @@ We go inside for hot chocolate.`;
             } else {
                  // Nếu không có bài nào, hiển thị mặc định
                  document.getElementById('current-story-title').textContent = 'Chưa có bài nào được chọn.';
+                 updateDictationControls(false); 
+                 loadNotes(); // Vẫn loadNotes để reset ghi chú
             }
             
             // Thiết lập trạng thái ban đầu: CHẾ ĐỘ NGƯỜI DÙNG (isAdmin = false)
